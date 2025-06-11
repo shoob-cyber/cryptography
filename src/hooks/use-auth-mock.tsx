@@ -3,6 +3,7 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { app as firebaseApp } from '@/lib/firebase'; // Import to initialize Firebase
 
 interface User {
   id: string;
@@ -24,6 +25,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true); // Start with loading true
   const router = useRouter();
+
+  // The import of '@/lib/firebase' above ensures Firebase is initialized.
+  // We don't need to explicitly call firebaseApp here for the mock auth to work.
 
   useEffect(() => {
     // Simulate checking for persisted login state
