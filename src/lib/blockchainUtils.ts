@@ -85,7 +85,8 @@ export async function logMessageToBlockchain(params: LogMessageParams): Promise<
 
 /**
  * Placeholder function to simulate verifying a message hash against an on-chain record.
- * @param messageIdentifier - An identifier for the message (e.g., its local ID or its on-chain log ID).
+ * @param messageIdentifier - An identifier for the message (e.g., a unique ID from your local DB that maps to an on-chain log,
+ * or the message hash itself if it's a primary key on-chain) and the local hash for comparison.
  * @param localHash - The locally computed hash of the message to compare.
  * @returns A promise that resolves with verification details or null if not found.
  */
