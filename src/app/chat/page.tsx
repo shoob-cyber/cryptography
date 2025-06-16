@@ -239,7 +239,7 @@ export default function ChatPage() {
           
           if (blockchainLog && blockchainLog.transactionHash) {
             isChainLogged = true;
-            etherscanLink = getEtherscanLink(blockchainLog.transactionHash);
+            etherscanLink = await getEtherscanLink(blockchainLog.transactionHash);
             console.log(`Message hash logged to blockchain. Tx: ${blockchainLog.transactionHash}`);
             toast({ title: "Message Logged", description: `Tx: ${blockchainLog.transactionHash.substring(0,10)}...`});
           } else {

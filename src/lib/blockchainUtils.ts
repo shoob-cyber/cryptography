@@ -39,9 +39,9 @@ interface VerifyMessageResponse {
 /**
  * Generates a link to view a transaction on Etherscan (or a similar block explorer).
  * @param transactionHash The blockchain transaction hash.
- * @returns A URL string to the transaction on Etherscan, or an empty string if base URL is not set.
+ * @returns A promise that resolves to a URL string to the transaction on Etherscan, or an empty string if base URL is not set.
  */
-export function getEtherscanLink(transactionHash: string): string {
+export async function getEtherscanLink(transactionHash: string): Promise<string> {
   if (!ETHERSCAN_BASE_URL) {
     return "";
   }
