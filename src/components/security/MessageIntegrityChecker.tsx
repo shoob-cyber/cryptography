@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { verifyMessageOnBlockchain } from "@/lib/blockchainUtils";
-import { generateMessageHash } from "@/app/chat/page"; // Assuming generateMessageHash can be exported and used
+import { generateMessageHash } from "@/app/chat/page"; 
 import { Loader2, Terminal, ShieldCheck, ShieldAlert, SearchCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -38,18 +38,21 @@ export function MessageIntegrityChecker() {
     setIsLoading(true);
     setError(null);
     setVerificationResult(null);
+    setLocalHash(null);
 
     try {
-      // For this component, we need the hash of the *encrypted* message if that's what's stored on-chain.
-      // However, users will likely paste the *decrypted* content.
-      // For this demo, we'll hash the provided content directly.
-      // In a real scenario, you'd need a way to get the original encrypted form or adjust the verification.
+      // For this component, users will likely paste the *decrypted* content.
+      // The hash stored on-chain should ideally be of the *encrypted* message.
+      // For this demo, we'll hash the provided (assumed decrypted) content.
+      // A real system would need to clarify if users should input original encrypted data or if the verification
+      // process can re-encrypt the provided decrypted content using the known method before hashing.
+      // For now, we assume the user is verifying based on the content they can read.
       const currentLocalHash = await generateMessageHash(messageContent);
       setLocalHash(currentLocalHash);
 
       // The `verifyMessageOnBlockchain` is a placeholder.
-      // It would take an identifier (e.g., a unique ID from your local DB that maps to an on-chain log,
-      // or the message hash itself if it's a primary key on-chain) and the local hash for comparison.
+      // It would take an identifier (e.g., the message hash itself if it's a primary key on-chain)
+      // and the local hash for comparison.
       const result = await verifyMessageOnBlockchain(messageIdOrHash, currentLocalHash);
 
       if (result) {
@@ -75,17 +78,18 @@ export function MessageIntegrityChecker() {
         <CardDescription>
           Verify the integrity of a message by comparing its local hash with the hash stored on the blockchain.
           (This is a conceptual demonstration using mocked blockchain interaction).
+          Provide the message's original (decrypted) content and its transaction hash (or unique on-chain identifier).
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleVerify} className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="messageIdOrHash">Message Identifier or Hash</Label>
+            <Label htmlFor="messageIdOrHash">Message Transaction Hash or On-Chain ID</Label>
             <Input
               id="messageIdOrHash"
               value={messageIdOrHash}
               onChange={(e) => setMessageIdOrHash(e.target.value)}
-              placeholder="Enter local message ID or its known hash"
+              placeholder="Enter transaction hash or on-chain message ID"
               required
               disabled={isLoading}
             />
@@ -102,7 +106,7 @@ export function MessageIntegrityChecker() {
               disabled={isLoading}
             />
              {localHash && (
-              <p className="text-xs text-muted-foreground pt-1">Computed local hash: {localHash.substring(0,12)}...</p>
+              <p className="text-xs text-muted-foreground pt-1">Computed local hash: {localHash.substring(0,20)}...</p>
             )}
           </div>
           <Button type="submit" className="w-full" disabled={isLoading || !messageContent.trim() || !messageIdOrHash.trim()}>
@@ -152,7 +156,7 @@ export function MessageIntegrityChecker() {
               <p><span className="font-medium">Receiver (On-chain):</span> {verificationResult.receiverAddress}</p>
               <p><span className="font-medium">Timestamp (On-chain):</span> {new Date(verificationResult.timestamp).toLocaleString()}</p>
                {!verificationResult.isVerified && (
-                 <p className="text-red-600 dark:text-red-400 font-medium">Warning: The local message hash does not match the hash stored on the blockchain. The message may have been tampered with or this is not the correct message.</p>
+                 <p className="text-red-600 dark:text-red-400 font-medium">Warning: The local message hash does not match the hash stored on the blockchain. The message may have been tampered with, this is not the correct message content for the given identifier, or the incorrect identifier was provided.</p>
                )}
             </CardContent>
           </Card>

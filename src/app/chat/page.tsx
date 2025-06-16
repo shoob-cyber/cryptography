@@ -42,15 +42,16 @@ const mockDecrypt = async (encryptedText: string): Promise<string> => {
   if (match && match[1]) {
     return illustrativeCipher(match[1], 3, false);
   }
+  // If it doesn't match the cipher prefix, return as is (might be already decrypted or unencrypted)
   if (!encryptedText.startsWith("cipher_caesar_3(")) {
     return encryptedText;
   }
-  return encryptedText;
+  return encryptedText; // Fallback if somehow malformed
 };
 // --- End Illustrative Cryptography ---
 
-// --- Message Hashing ---
-const generateMessageHash = async (text: string): Promise<string> => {
+// --- Message Hashing (SHA-256) ---
+export const generateMessageHash = async (text: string): Promise<string> => {
   if (typeof window !== 'undefined' && window.crypto && window.crypto.subtle) {
     try {
       const encoder = new TextEncoder();
@@ -58,17 +59,17 @@ const generateMessageHash = async (text: string): Promise<string> => {
       const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-      return hashHex; // Return full hash
+      return hashHex;
     } catch (error) {
       console.error("Error generating SHA-256 hash:", error);
     }
   }
-  // Fallback hashing (less secure, for environments without crypto.subtle)
-  await new Promise(resolve => setTimeout(resolve, 20));
+  // Fallback hashing (less secure, for environments without crypto.subtle or for very old data)
+  await new Promise(resolve => setTimeout(resolve, 20)); // Simulate async for consistency
   let hashVal = 0;
   for (let i = 0; i < text.length; i++) {
     hashVal = (hashVal << 5) - hashVal + text.charCodeAt(i);
-    hashVal |= 0;
+    hashVal |= 0; // Convert to 32bit integer
   }
   return `fallback_hash_${Math.abs(hashVal).toString(16)}`;
 };
@@ -82,7 +83,7 @@ export default function ChatPage() {
   const router = useRouter();
 
   const contact = {
-    id: "contact-123",
+    id: "contact-123", // Example contact ID
     name: "Alice Wonderland",
     avatar: "https://placehold.co/100x100.png",
     dataAiHint: "female person"
@@ -107,6 +108,8 @@ export default function ChatPage() {
             const parsedMessages = JSON.parse(storedMessagesRaw).map((msg: any) => ({
               ...msg,
               timestamp: new Date(msg.timestamp),
+              // Ensure messageHash exists, generate if not (for older data)
+              messageHash: msg.messageHash || '', 
             }));
             loadedMessages = parsedMessages;
           } catch (e) {
@@ -116,6 +119,7 @@ export default function ChatPage() {
         }
 
         if (loadedMessages.length === 0) {
+          // Create default messages if none are stored
           const defaultText1 = "Hello there! This is a default message from Alice.";
           const defaultText2 = `Hi Alice! This is a default reply from ${user.name || user.email?.split('@')[0] || "me"}.`;
           
@@ -133,7 +137,7 @@ export default function ChatPage() {
               avatar: contact.avatar,
               dataAiHint: contact.dataAiHint,
               senderName: contact.name,
-              messageHash: await generateMessageHash(encryptedText1),
+              messageHash: await generateMessageHash(encryptedText1), // Hash of encrypted text
             },
             {
               id: "default-2",
@@ -142,32 +146,38 @@ export default function ChatPage() {
               senderId: user.id,
               receiverId: contact.id,
               timestamp: new Date(Date.now() - 1000 * 60 * 3),
-              avatar: "https://placehold.co/100x100.png",
+              avatar: user.avatarUrl || "https://placehold.co/100x100.png", // Use user avatar if available
               dataAiHint: "user profile",
               senderName: user.name || user.email?.split('@')[0] || "You",
-              messageHash: await generateMessageHash(encryptedText2),
+              messageHash: await generateMessageHash(encryptedText2), // Hash of encrypted text
             },
           ];
+          // Persist default messages to localStorage
           localStorage.setItem(chatStorageKey, JSON.stringify(loadedMessages.map(msg => ({...msg, timestamp: msg.timestamp.toISOString() }))));
         }
         
-        const decryptedMessages = await Promise.all(
+        // Decrypt messages for display and ensure all messages have a hash
+        const processedMessages = await Promise.all(
           loadedMessages.map(async (msg) => ({
             ...msg,
             decryptedText: await mockDecrypt(msg.text),
+            // Ensure messageHash is present; if it was empty, hash the raw text (less ideal but a fallback)
+            messageHash: msg.messageHash || await generateMessageHash(msg.text), 
           }))
         );
-        setMessages(decryptedMessages);
+        setMessages(processedMessages);
       };
       loadMessages();
     }
   }, [user, chatStorageKey, contact.id, contact.name, contact.avatar, contact.dataAiHint]);
 
   useEffect(() => {
+    // Persist messages to localStorage whenever they change
     if (user && chatStorageKey && messages.length > 0) {
       const messagesToStore = messages.map(msg => ({
+        // Store all relevant fields, including new blockchain-related ones
         id: msg.id,
-        text: msg.text,
+        text: msg.text, // Store encrypted text
         sender: msg.sender,
         senderId: msg.senderId,
         receiverId: msg.receiverId,
@@ -194,14 +204,14 @@ export default function ChatPage() {
     const newMessageId = Date.now().toString();
     const tempMessage: Message = {
       id: newMessageId,
-      text: text, // Original text stored temporarily
-      decryptedText: text, // Show immediately
+      text: text, // Original text stored temporarily, will be replaced by encrypted
+      decryptedText: text, // Show original text immediately in UI
       sender: "user",
       senderId: user.id,
       receiverId: contact.id,
       timestamp: new Date(),
       status: 'sending',
-      avatar: "https://placehold.co/100x100.png",
+      avatar: user.avatarUrl || "https://placehold.co/100x100.png",
       dataAiHint: "user profile",
       senderName: user.name || user.email?.split('@')[0] || "You",
       messageHash: await generateMessageHash(text), // Hash original text temporarily for display
@@ -210,7 +220,8 @@ export default function ChatPage() {
 
     try {
       const encryptedText = await mockEncrypt(text);
-      const finalMessageHash = await generateMessageHash(encryptedText); // Hash the encrypted text
+      // The final hash should be of the encrypted text, as that's what would be immutable/verifiable
+      const finalMessageHash = await generateMessageHash(encryptedText); 
 
       let blockchainLog: { transactionHash: string } | null = null;
       let finalStatus: Message['status'] = 'sent';
@@ -223,16 +234,13 @@ export default function ChatPage() {
 
       if (shouldLogToBlockchain) {
         try {
-          // This is where you would interact with your actual smart contract
-          // The `logMessageToBlockchain` function is a placeholder in `lib/blockchainUtils.ts`
-          // It needs the sender's wallet address if not implicit in the contract interaction
-          const senderAddress = user.walletAddress || user.id; // Use walletAddress if available
+          const senderAddress = user.walletAddress || user.id; // Use walletAddress if available from MetaMask login
           const receiverAddress = contact.id; // Or contact's wallet address if they have one
 
           blockchainLog = await logMessageToBlockchain({
             senderAddress,
             receiverAddress,
-            messageHash: finalMessageHash,
+            messageHash: finalMessageHash, // Log the hash of the encrypted message
             timestamp: tempMessage.timestamp.getTime(),
             // Optional: signature: signedMessageData.signature // If message signing is implemented
           });
@@ -254,9 +262,9 @@ export default function ChatPage() {
       
       const sentMessage: Message = {
         ...tempMessage,
-        text: encryptedText,
-        decryptedText: text,
-        messageHash: finalMessageHash,
+        text: encryptedText, // Now store the encrypted text
+        decryptedText: text, // Keep decrypted text for UI
+        messageHash: finalMessageHash, // Store the hash of the encrypted text
         status: finalStatus,
         isChainLogged,
         transactionHash: blockchainLog?.transactionHash,

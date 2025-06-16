@@ -59,16 +59,10 @@ export async function getEtherscanLink(transactionHash: string): Promise<string>
 export async function logMessageToBlockchain(params: LogMessageParams): Promise<LogMessageResponse> {
   console.log("Simulating logging message to blockchain:", params);
 
-  // --- MOCK IMPLEMENTATION ---
-  // In a real app:
-  // 1. Connect to the user's wallet (MetaMask).
-  // 2. Get a signer instance.
-  // 3. Create a contract instance using the ABI and CONTRACT_ADDRESS.
-  // 4. Call the smart contract function (e.g., `contract.logMessage(...)`).
-  // 5. Wait for the transaction to be mined and get the transaction hash.
-
   if (!CONTRACT_ADDRESS) {
     console.warn("No contract address set, blockchain logging is fully mocked.");
+    // Simulate a failure if contract address is missing, or return a specific error object
+    // For now, we'll proceed with mock success to allow UI flow.
   }
   
   // Simulate network delay
@@ -86,12 +80,12 @@ export async function logMessageToBlockchain(params: LogMessageParams): Promise<
 /**
  * Placeholder function to simulate verifying a message hash against an on-chain record.
  * @param messageIdentifier - An identifier for the message (e.g., a unique ID from your local DB that maps to an on-chain log,
- * or the message hash itself if it's a primary key on-chain) and the local hash for comparison.
+ * or the message hash itself if it's a primary key on-chain).
  * @param localHash - The locally computed hash of the message to compare.
  * @returns A promise that resolves with verification details or null if not found.
  */
 export async function verifyMessageOnBlockchain(
-  messageIdentifier: string, // Could be a unique ID or the messageHash itself if it's used as a primary key on-chain
+  messageIdentifier: string, 
   localHash: string
 ): Promise<VerifyMessageResponse | null> {
   console.log(`Simulating verification for message ID/hash: ${messageIdentifier} with local hash: ${localHash}`);
@@ -100,13 +94,6 @@ export async function verifyMessageOnBlockchain(
     console.warn("No contract address set, blockchain verification is fully mocked.");
     return null;
   }
-
-  // --- MOCK IMPLEMENTATION ---
-  // In a real app:
-  // 1. Connect to a provider (e.g., Infura, Alchemy, or MetaMask's provider for read-only).
-  // 2. Create a contract instance.
-  // 3. Call a read function on the smart contract (e.g., `contract.getMessageLog(messageIdentifier)`).
-  // 4. Compare the returned onChainHash with the provided localHash.
 
   await new Promise(resolve => setTimeout(resolve, 1000));
 
