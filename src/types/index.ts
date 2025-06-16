@@ -4,14 +4,17 @@ export interface Message {
   text: string; // This will store the encrypted/ciphered text
   decryptedText?: string; // For UI display, derived from 'text'
   sender: 'user' | 'other';
-  senderId: string; 
-  receiverId: string; 
+  senderId: string;
+  receiverId: string;
   timestamp: Date;
-  messageHash?: string; // Hash of the (encrypted) message content
+  messageHash: string; // Hash of the (encrypted) message content - will always be present
   status?: 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
-  avatar?: string; 
+  avatar?: string;
   dataAiHint?: string; // For placeholder image generation
-  senderName?: string; 
+  senderName?: string;
+  isChainLogged?: boolean; // True if the message hash is logged on the blockchain
+  transactionHash?: string; // Blockchain transaction hash
+  etherscanLink?: string; // Link to view the transaction on Etherscan
+  isSigned?: boolean; // True if the message was signed by the sender's wallet
+  signature?: string; // The message signature
 }
-
-    
