@@ -26,6 +26,9 @@ interface LogMessageParams {
 
 interface LogMessageResponse {
   transactionHash: string;
+  mockGasFee: string;
+  mockBlockNumber: number;
+  finalStatus: 'chain_confirmed' | 'chain_failed';
 }
 
 interface VerifyMessageResponse {
@@ -53,27 +56,47 @@ export async function getEtherscanLink(transactionHash: string): Promise<string>
 /**
  * Placeholder function to simulate logging a message hash to a smart contract.
  * In a real application, this would interact with a deployed smart contract using Ethers.js or Web3.js.
+ * This version simulates a delay for confirmation and returns mock gas/block info.
  * @param params - The details of the message to log.
- * @returns A promise that resolves with the (mocked) transaction hash.
+ * @returns A promise that resolves with the (mocked) transaction hash, gas, block, and status.
  */
 export async function logMessageToBlockchain(params: LogMessageParams): Promise<LogMessageResponse> {
-  console.log("Simulating logging message to blockchain:", params);
+  console.log("Simulating logging message to blockchain (pending):", params);
 
   if (!CONTRACT_ADDRESS) {
     console.warn("No contract address set, blockchain logging is fully mocked.");
-    // Simulate a failure if contract address is missing, or return a specific error object
+    // Simulate a failure if contract address is missing
     // For now, we'll proceed with mock success to allow UI flow.
   }
   
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 1500));
+  // Simulate network delay for transaction to be mined/confirmed
+  await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 3000)); // 2-5 seconds delay
 
   // Generate a mock transaction hash
   const mockTransactionHash = `0x${Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join('')}`;
+  const mockGasFee = `${(Math.random() * 0.01 + 0.001).toFixed(5)} ETH`; // e.g., 0.001 to 0.011 ETH
+  const mockBlockNumber = Math.floor(Date.now() / 10000) + Math.floor(Math.random() * 1000); // Mock block number
   
-  console.log(`Mocked transaction hash: ${mockTransactionHash}`);
-  
-  return { transactionHash: mockTransactionHash };
+  // Simulate occasional failure
+  const success = Math.random() > 0.1; // 90% success rate
+
+  if (success) {
+    console.log(`Mocked transaction confirmed: ${mockTransactionHash}, Gas: ${mockGasFee}, Block: ${mockBlockNumber}`);
+    return { 
+      transactionHash: mockTransactionHash,
+      mockGasFee,
+      mockBlockNumber,
+      finalStatus: 'chain_confirmed'
+    };
+  } else {
+    console.log(`Mocked transaction failed for hash: ${params.messageHash}`);
+    return {
+      transactionHash: "0xFAILED_TRANSACTION_HASH___________________________________________", // Provide a distinct hash for failures
+      mockGasFee: "0 ETH",
+      mockBlockNumber: 0,
+      finalStatus: 'chain_failed'
+    };
+  }
 }
 
 
@@ -115,11 +138,3 @@ export async function verifyMessageOnBlockchain(
     return null;
   }
 }
-
-// TODO: Implement actual Web3/Ethers.js logic for:
-// - Connecting to MetaMask
-// - Getting user's address
-// - Instantiating smart contract
-// - Calling contract methods (write: logMessage, read: getMessageLog)
-// - Handling transaction signing and submission
-// - Message signing and verification (optional feature)

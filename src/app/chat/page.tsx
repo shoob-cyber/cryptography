@@ -108,7 +108,6 @@ export default function ChatPage() {
             const parsedMessages = JSON.parse(storedMessagesRaw).map((msg: any) => ({
               ...msg,
               timestamp: new Date(msg.timestamp),
-              // Ensure messageHash exists, generate if not (for older data)
               messageHash: msg.messageHash || '', 
             }));
             loadedMessages = parsedMessages;
@@ -119,7 +118,6 @@ export default function ChatPage() {
         }
 
         if (loadedMessages.length === 0) {
-          // Create default messages if none are stored
           const defaultText1 = "Hello there! This is a default message from Alice.";
           const defaultText2 = `Hi Alice! This is a default reply from ${user.name || user.email?.split('@')[0] || "me"}.`;
           
@@ -137,7 +135,7 @@ export default function ChatPage() {
               avatar: contact.avatar,
               dataAiHint: contact.dataAiHint,
               senderName: contact.name,
-              messageHash: await generateMessageHash(encryptedText1), // Hash of encrypted text
+              messageHash: await generateMessageHash(encryptedText1),
             },
             {
               id: "default-2",
@@ -146,22 +144,19 @@ export default function ChatPage() {
               senderId: user.id,
               receiverId: contact.id,
               timestamp: new Date(Date.now() - 1000 * 60 * 3),
-              avatar: user.avatarUrl || "https://placehold.co/100x100.png", // Use user avatar if available
+              avatar: user.avatarUrl || "https://placehold.co/100x100.png",
               dataAiHint: "user profile",
               senderName: user.name || user.email?.split('@')[0] || "You",
-              messageHash: await generateMessageHash(encryptedText2), // Hash of encrypted text
+              messageHash: await generateMessageHash(encryptedText2), 
             },
           ];
-          // Persist default messages to localStorage
           localStorage.setItem(chatStorageKey, JSON.stringify(loadedMessages.map(msg => ({...msg, timestamp: msg.timestamp.toISOString() }))));
         }
         
-        // Decrypt messages for display and ensure all messages have a hash
         const processedMessages = await Promise.all(
           loadedMessages.map(async (msg) => ({
             ...msg,
             decryptedText: await mockDecrypt(msg.text),
-            // Ensure messageHash is present; if it was empty, hash the raw text (less ideal but a fallback)
             messageHash: msg.messageHash || await generateMessageHash(msg.text), 
           }))
         );
@@ -172,12 +167,10 @@ export default function ChatPage() {
   }, [user, chatStorageKey, contact.id, contact.name, contact.avatar, contact.dataAiHint]);
 
   useEffect(() => {
-    // Persist messages to localStorage whenever they change
     if (user && chatStorageKey && messages.length > 0) {
       const messagesToStore = messages.map(msg => ({
-        // Store all relevant fields, including new blockchain-related ones
         id: msg.id,
-        text: msg.text, // Store encrypted text
+        text: msg.text, 
         sender: msg.sender,
         senderId: msg.senderId,
         receiverId: msg.receiverId,
@@ -192,6 +185,8 @@ export default function ChatPage() {
         etherscanLink: msg.etherscanLink,
         isSigned: msg.isSigned,
         signature: msg.signature,
+        mockGasFee: msg.mockGasFee,
+        mockBlockNumber: msg.mockBlockNumber,
       }));
       localStorage.setItem(chatStorageKey, JSON.stringify(messagesToStore));
     }
@@ -204,8 +199,8 @@ export default function ChatPage() {
     const newMessageId = Date.now().toString();
     const tempMessage: Message = {
       id: newMessageId,
-      text: text, // Original text stored temporarily, will be replaced by encrypted
-      decryptedText: text, // Show original text immediately in UI
+      text: text, 
+      decryptedText: text, 
       sender: "user",
       senderId: user.id,
       receiverId: contact.id,
@@ -214,67 +209,72 @@ export default function ChatPage() {
       avatar: user.avatarUrl || "https://placehold.co/100x100.png",
       dataAiHint: "user profile",
       senderName: user.name || user.email?.split('@')[0] || "You",
-      messageHash: await generateMessageHash(text), // Hash original text temporarily for display
+      messageHash: await generateMessageHash(text), 
     };
     setMessages((prev) => [...prev, tempMessage]);
 
     try {
       const encryptedText = await mockEncrypt(text);
-      // The final hash should be of the encrypted text, as that's what would be immutable/verifiable
       const finalMessageHash = await generateMessageHash(encryptedText); 
 
-      let blockchainLog: { transactionHash: string } | null = null;
-      let finalStatus: Message['status'] = 'sent';
-      let isChainLogged = false;
-      let etherscanLink = undefined;
-
-      // Simulate blockchain logging
-      // In a real app, you'd check a user preference or a UI toggle here
-      const shouldLogToBlockchain = true; // For demo, assume we always try
+      // Update message with encrypted text and final hash, status remains 'sending' or similar
+      setMessages((prev) => prev.map(msg => 
+        msg.id === newMessageId ? { ...msg, text: encryptedText, messageHash: finalMessageHash, status: 'sent' } : msg
+      ));
+      
+      const shouldLogToBlockchain = true; 
 
       if (shouldLogToBlockchain) {
-        try {
-          const senderAddress = user.walletAddress || user.id; // Use walletAddress if available from MetaMask login
-          const receiverAddress = contact.id; // Or contact's wallet address if they have one
+        // Indicate pending blockchain logging
+        setMessages((prev) => prev.map(msg => 
+          msg.id === newMessageId ? { ...msg, status: 'chain_pending' } : msg
+        ));
 
-          blockchainLog = await logMessageToBlockchain({
+        try {
+          const senderAddress = user.walletAddress || user.id; 
+          const receiverAddress = contact.id; 
+
+          const blockchainLog = await logMessageToBlockchain({
             senderAddress,
             receiverAddress,
-            messageHash: finalMessageHash, // Log the hash of the encrypted message
+            messageHash: finalMessageHash,
             timestamp: tempMessage.timestamp.getTime(),
-            // Optional: signature: signedMessageData.signature // If message signing is implemented
           });
           
-          if (blockchainLog && blockchainLog.transactionHash) {
-            isChainLogged = true;
-            etherscanLink = await getEtherscanLink(blockchainLog.transactionHash);
+          let etherscanLinkVal = undefined;
+          if (blockchainLog.finalStatus === 'chain_confirmed' && blockchainLog.transactionHash) {
+            etherscanLinkVal = await getEtherscanLink(blockchainLog.transactionHash);
             console.log(`Message hash logged to blockchain. Tx: ${blockchainLog.transactionHash}`);
-            toast({ title: "Message Logged", description: `Tx: ${blockchainLog.transactionHash.substring(0,10)}...`});
+            toast({ title: "Message Logged", description: `Tx: ${blockchainLog.transactionHash.substring(0,10)}... Confirmed!`});
           } else {
              toast({ title: "Blockchain Log Failed", description: "Could not log message to blockchain.", variant: "destructive" });
           }
+          
+          const finalSentMessage: Message = {
+            ...tempMessage, // start with tempMessage to retain original decrypted text and other fields
+            text: encryptedText,
+            messageHash: finalMessageHash,
+            status: blockchainLog.finalStatus,
+            isChainLogged: blockchainLog.finalStatus === 'chain_confirmed',
+            transactionHash: blockchainLog.transactionHash,
+            etherscanLink: etherscanLinkVal,
+            mockGasFee: blockchainLog.mockGasFee,
+            mockBlockNumber: blockchainLog.mockBlockNumber,
+          };
+          setMessages((prev) => prev.map(msg => msg.id === newMessageId ? finalSentMessage : msg));
+
         } catch (chainError) {
           console.error("Blockchain logging error:", chainError);
           toast({ title: "Blockchain Error", description: "Failed to log message to blockchain.", variant: "destructive" });
-          // Optionally, set message status to 'failed' or handle differently
+          setMessages((prev) => prev.map(msg => msg.id === newMessageId ? {...msg, status: 'chain_failed'} : msg));
         }
+      } else {
+         // If not logging to blockchain, just set status to sent
+         setMessages((prev) => prev.map(msg => 
+          msg.id === newMessageId ? { ...msg, text: encryptedText, messageHash: finalMessageHash, status: 'sent' } : msg
+        ));
       }
       
-      const sentMessage: Message = {
-        ...tempMessage,
-        text: encryptedText, // Now store the encrypted text
-        decryptedText: text, // Keep decrypted text for UI
-        messageHash: finalMessageHash, // Store the hash of the encrypted text
-        status: finalStatus,
-        isChainLogged,
-        transactionHash: blockchainLog?.transactionHash,
-        etherscanLink,
-        // isSigned: signedMessageData.isSigned, // If message signing is implemented
-        // signature: signedMessageData.signature, // If message signing is implemented
-      };
-      
-      setMessages((prev) => prev.map(msg => msg.id === newMessageId ? sentMessage : msg));
-
     } catch (error) {
       console.error("Failed to send message:", error);
       setMessages((prev) => prev.map(msg => msg.id === newMessageId ? {...msg, status: 'failed'} : msg));

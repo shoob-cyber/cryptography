@@ -8,7 +8,7 @@ export interface Message {
   receiverId: string;
   timestamp: Date;
   messageHash: string; // Hash of the (encrypted) message content - will always be present
-  status?: 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
+  status?: 'sending' | 'sent' | 'delivered' | 'read' | 'failed' | 'chain_pending' | 'chain_confirmed' | 'chain_failed';
   avatar?: string;
   dataAiHint?: string; // For placeholder image generation
   senderName?: string;
@@ -17,4 +17,7 @@ export interface Message {
   etherscanLink?: string; // Link to view the transaction on Etherscan
   isSigned?: boolean; // True if the message was signed by the sender's wallet
   signature?: string; // The message signature
+  mockGasFee?: string; // Simulated gas fee for the transaction
+  mockBlockNumber?: number; // Simulated block number of confirmation
 }
+
