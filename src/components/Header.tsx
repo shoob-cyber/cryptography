@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -5,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/Logo";
 import { useAuth } from "@/hooks/use-auth-mock";
 import { useRouter } from "next/navigation";
-import { MessageCircle, ShieldQuestion, LogIn, LogOut, UserCircle } from "lucide-react";
+import { MessageCircle, ShieldQuestion, LogIn, LogOut, UserCircle, ListOrdered } from "lucide-react";
 
 export function Header() {
   const { user, logout } = useAuth();
@@ -20,7 +21,7 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">
         <Logo />
-        <nav className="flex items-center gap-6 text-sm font-medium">
+        <nav className="flex items-center gap-4 text-sm font-medium">
           {user && (
             <>
               <Link
@@ -36,6 +37,13 @@ export function Header() {
               >
                 <ShieldQuestion size={18} />
                 Security Advisor
+              </Link>
+              <Link
+                href="/ledger"
+                className="flex items-center gap-1 text-foreground/80 hover:text-foreground transition-colors"
+              >
+                <ListOrdered size={18} />
+                Ledger
               </Link>
             </>
           )}
