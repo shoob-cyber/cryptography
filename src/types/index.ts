@@ -21,3 +21,12 @@ export interface Message {
   mockBlockNumber?: number; // Simulated block number of confirmation
 }
 
+export interface ChatContact {
+  id: string;
+  name: string;
+  avatar: string;
+  dataAiHint: string;
+  lastMessage?: string;
+  lastMessageTimestamp?: number;
+  unreadCount?: number;
+}

@@ -4,7 +4,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { MessageList } from "@/components/chat/MessageList";
 import { MessageInput } from "@/components/chat/MessageInput";
-import { Message } from "@/types";
+import { ChatList } from "@/components/chat/ChatList";
+import type { Message, ChatContact } from "@/types";
 import { useAuth } from "@/hooks/use-auth-mock";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { logMessageToBlockchain, getEtherscanLink } from "@/lib/blockchainUtils";
 import { toast } from "@/hooks/use-toast";
+import { ShieldAlert } from "lucide-react";
 
 const CHAT_STORAGE_KEY_PREFIX = "blocktalk_chat_";
 
@@ -38,15 +40,14 @@ const mockEncrypt = async (text: string): Promise<string> => {
 
 const mockDecrypt = async (encryptedText: string): Promise<string> => {
   await new Promise(resolve => setTimeout(resolve, 30));
-  const match = encryptedText.match(/^cipher_caesar_3\((.*)\)$/);
+  const match = encryptedText.match(/^cipher_caesar_3\\((.*)\\)$/);
   if (match && match[1]) {
     return illustrativeCipher(match[1], 3, false);
   }
-  // If it doesn't match the cipher prefix, return as is (might be already decrypted or unencrypted)
   if (!encryptedText.startsWith("cipher_caesar_3(")) {
     return encryptedText;
   }
-  return encryptedText; // Fallback if somehow malformed
+  return encryptedText; 
 };
 // --- End Illustrative Cryptography ---
 
@@ -64,32 +65,52 @@ export const generateMessageHash = async (text: string): Promise<string> => {
       console.error("Error generating SHA-256 hash:", error);
     }
   }
-  // Fallback hashing (less secure, for environments without crypto.subtle or for very old data)
-  await new Promise(resolve => setTimeout(resolve, 20)); // Simulate async for consistency
+  await new Promise(resolve => setTimeout(resolve, 20)); 
   let hashVal = 0;
   for (let i = 0; i < text.length; i++) {
     hashVal = (hashVal << 5) - hashVal + text.charCodeAt(i);
-    hashVal |= 0; // Convert to 32bit integer
+    hashVal |= 0; 
   }
   return `fallback_hash_${Math.abs(hashVal).toString(16)}`;
 };
 // --- End Message Hashing ---
 
+const initialContacts: ChatContact[] = [
+  {
+    id: "contact-alice-123",
+    name: "Alice Wonderland",
+    avatar: "https://placehold.co/100x100.png",
+    dataAiHint: "female person",
+    lastMessage: "Thinking about cryptography...",
+    lastMessageTimestamp: Date.now() - 1000 * 60 * 15,
+  },
+  {
+    id: "contact-bob-456",
+    name: "Bob The Builder",
+    avatar: "https://placehold.co/100x100.png",
+    dataAiHint: "male construction",
+    lastMessage: "Can we secure it?",
+    lastMessageTimestamp: Date.now() - 1000 * 60 * 60 * 2,
+  },
+  {
+    id: "contact-charlie-789",
+    name: "Charlie Brown",
+    avatar: "https://placehold.co/100x100.png",
+    dataAiHint: "boy character",
+    lastMessage: "Good grief!",
+    lastMessageTimestamp: Date.now() - 1000 * 60 * 60 * 24,
+  }
+];
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isSending, setIsSending] = useState(false);
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const [contacts, setContacts] = useState<ChatContact[]>(initialContacts);
+  const [selectedContact, setSelectedContact] = useState<ChatContact | null>(null);
 
-  const contact = {
-    id: "contact-123", // Example contact ID
-    name: "Alice Wonderland",
-    avatar: "https://placehold.co/100x100.png",
-    dataAiHint: "female person"
-  };
-  
-  const chatStorageKey = user ? `${CHAT_STORAGE_KEY_PREFIX}${user.id}_${contact.id}` : null;
+  const chatStorageKey = user && selectedContact ? `${CHAT_STORAGE_KEY_PREFIX}${user.id}_${selectedContact.id}` : null;
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -98,8 +119,15 @@ export default function ChatPage() {
   }, [user, authLoading, router]);
 
   useEffect(() => {
-    if (user && chatStorageKey) {
+    if (user && contacts.length > 0 && !selectedContact) {
+      setSelectedContact(contacts[0]);
+    }
+  }, [user, contacts, selectedContact]);
+
+  useEffect(() => {
+    if (user && selectedContact && chatStorageKey) {
       const loadMessages = async () => {
+        setMessages([]); // Clear messages when contact changes before loading new ones
         let loadedMessages: Message[] = [];
         const storedMessagesRaw = localStorage.getItem(chatStorageKey);
 
@@ -118,31 +146,32 @@ export default function ChatPage() {
         }
 
         if (loadedMessages.length === 0) {
-          const defaultText1 = "Hello there! This is a default message from Alice.";
-          const defaultText2 = `Hi Alice! This is a default reply from ${user.name || user.email?.split('@')[0] || "me"}.`;
+          // Create default messages specific to the selected contact
+          const defaultText1 = `Hello there! This is a default message from ${selectedContact.name}.`;
+          const defaultText2 = `Hi ${selectedContact.name}! This is a default reply from ${user.name || user.email?.split('@')[0] || "me"}.`;
           
           const encryptedText1 = await mockEncrypt(defaultText1);
           const encryptedText2 = await mockEncrypt(defaultText2);
 
           loadedMessages = [
             {
-              id: "default-1",
+              id: `default-${selectedContact.id}-1`,
               text: encryptedText1,
               sender: "other",
-              senderId: contact.id,
+              senderId: selectedContact.id,
               receiverId: user.id,
               timestamp: new Date(Date.now() - 1000 * 60 * 5),
-              avatar: contact.avatar,
-              dataAiHint: contact.dataAiHint,
-              senderName: contact.name,
+              avatar: selectedContact.avatar,
+              dataAiHint: selectedContact.dataAiHint,
+              senderName: selectedContact.name,
               messageHash: await generateMessageHash(encryptedText1),
             },
             {
-              id: "default-2",
+              id: `default-${selectedContact.id}-2`,
               text: encryptedText2,
               sender: "user",
               senderId: user.id,
-              receiverId: contact.id,
+              receiverId: selectedContact.id,
               timestamp: new Date(Date.now() - 1000 * 60 * 3),
               avatar: user.avatarUrl || "https://placehold.co/100x100.png",
               dataAiHint: "user profile",
@@ -164,7 +193,8 @@ export default function ChatPage() {
       };
       loadMessages();
     }
-  }, [user, chatStorageKey, contact.id, contact.name, contact.avatar, contact.dataAiHint]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, selectedContact, chatStorageKey]); // Note: Removed dependencies that might cause excessive reloads
 
   useEffect(() => {
     if (user && chatStorageKey && messages.length > 0) {
@@ -193,7 +223,7 @@ export default function ChatPage() {
   }, [messages, user, chatStorageKey]);
 
   const handleSendMessage = async (text: string) => {
-    if (!user) return;
+    if (!user || !selectedContact) return;
     setIsSending(true);
 
     const newMessageId = Date.now().toString();
@@ -203,7 +233,7 @@ export default function ChatPage() {
       decryptedText: text, 
       sender: "user",
       senderId: user.id,
-      receiverId: contact.id,
+      receiverId: selectedContact.id,
       timestamp: new Date(),
       status: 'sending',
       avatar: user.avatarUrl || "https://placehold.co/100x100.png",
@@ -217,7 +247,6 @@ export default function ChatPage() {
       const encryptedText = await mockEncrypt(text);
       const finalMessageHash = await generateMessageHash(encryptedText); 
 
-      // Update message with encrypted text and final hash, status remains 'sending' or similar
       setMessages((prev) => prev.map(msg => 
         msg.id === newMessageId ? { ...msg, text: encryptedText, messageHash: finalMessageHash, status: 'sent' } : msg
       ));
@@ -225,14 +254,13 @@ export default function ChatPage() {
       const shouldLogToBlockchain = true; 
 
       if (shouldLogToBlockchain) {
-        // Indicate pending blockchain logging
         setMessages((prev) => prev.map(msg => 
           msg.id === newMessageId ? { ...msg, status: 'chain_pending' } : msg
         ));
 
         try {
           const senderAddress = user.walletAddress || user.id; 
-          const receiverAddress = contact.id; 
+          const receiverAddress = selectedContact.id; 
 
           const blockchainLog = await logMessageToBlockchain({
             senderAddress,
@@ -251,7 +279,7 @@ export default function ChatPage() {
           }
           
           const finalSentMessage: Message = {
-            ...tempMessage, // start with tempMessage to retain original decrypted text and other fields
+            ...tempMessage,
             text: encryptedText,
             messageHash: finalMessageHash,
             status: blockchainLog.finalStatus,
@@ -269,7 +297,6 @@ export default function ChatPage() {
           setMessages((prev) => prev.map(msg => msg.id === newMessageId ? {...msg, status: 'chain_failed'} : msg));
         }
       } else {
-         // If not logging to blockchain, just set status to sent
          setMessages((prev) => prev.map(msg => 
           msg.id === newMessageId ? { ...msg, text: encryptedText, messageHash: finalMessageHash, status: 'sent' } : msg
         ));
@@ -284,44 +311,63 @@ export default function ChatPage() {
     }
   };
 
+  const handleSelectContact = (contact: ChatContact) => {
+    setSelectedContact(contact);
+  };
+
   if (authLoading || !user) {
     return (
-      <div className="flex flex-col h-[calc(100vh-10rem)]">
-        <div className="flex items-center p-4 border-b">
-          <Skeleton className="h-10 w-10 rounded-full mr-3" />
-          <Skeleton className="h-6 w-1/4" />
-        </div>
-        <div className="flex-grow p-4 space-y-4">
-          <Skeleton className="h-16 w-3/4" />
-          <Skeleton className="h-16 w-3/4 ml-auto" />
-          <Skeleton className="h-16 w-3/4" />
-        </div>
-        <div className="p-4 border-t flex gap-2">
-          <Skeleton className="h-10 flex-grow" />
-          <Skeleton className="h-10 w-10 rounded-full" />
+      <div className="flex flex-grow items-center justify-center">
+        <div className="w-full max-w-md p-4 space-y-4">
+          <Skeleton className="h-10 w-10 rounded-full mr-3 self-center" />
+          <Skeleton className="h-6 w-3/4 mx-auto" />
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-10 w-full" />
         </div>
       </div>
     );
   }
 
   return (
-    <Card className="w-full h-[calc(100vh-10rem)] flex flex-col shadow-2xl overflow-hidden">
-      <CardHeader className="p-4 border-b">
-        <div className="flex items-center gap-3">
-          <Avatar>
-            <AvatarImage src={contact.avatar} alt={contact.name} data-ai-hint={contact.dataAiHint}/>
-            <AvatarFallback>{contact.name.substring(0,1)}</AvatarFallback>
-          </Avatar>
-          <CardTitle className="text-lg font-medium">{contact.name}</CardTitle>
-        </div>
-      </CardHeader>
-      <CardContent className="p-0 flex-grow overflow-hidden flex flex-col">
-        <div className="text-xs text-center p-2 bg-secondary/50 text-muted-foreground">
-          Note: Encryption shown is illustrative (Caesar cipher) and NOT SECURE. For demo purposes only. Message hashes are simulated on-chain.
-        </div>
-        <MessageList messages={messages} />
-        <MessageInput onSendMessage={handleSendMessage} isSending={isSending} />
-      </CardContent>
-    </Card>
+    <div className="flex flex-grow h-[calc(100vh_-_theme(spacing.16)_-_theme(spacing.16))] rounded-lg border bg-card text-card-foreground shadow-lg overflow-hidden">
+      {/* Sidebar for Chat List */}
+      <div className="w-[280px] md:w-[320px] lg:w-[360px] flex-shrink-0">
+        <ChatList
+          contacts={contacts}
+          selectedContact={selectedContact}
+          onSelectContact={handleSelectContact}
+        />
+      </div>
+
+      {/* Main Chat Window */}
+      <div className="flex-1 flex flex-col bg-background">
+        {!selectedContact ? (
+          <div className="flex-grow flex items-center justify-center text-muted-foreground">
+            <p>Select a chat to start messaging.</p>
+          </div>
+        ) : (
+          <>
+            <CardHeader className="p-4 border-b">
+              <div className="flex items-center gap-3">
+                <Avatar>
+                  <AvatarImage src={selectedContact.avatar} alt={selectedContact.name} data-ai-hint={selectedContact.dataAiHint}/>
+                  <AvatarFallback>{selectedContact.name.substring(0,1)}</AvatarFallback>
+                </Avatar>
+                <CardTitle className="text-lg font-medium">{selectedContact.name}</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0 flex-grow overflow-hidden flex flex-col">
+              <div className="flex items-center gap-2 text-xs text-center p-2 bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300 border-b border-yellow-300 dark:border-yellow-700">
+                <ShieldAlert size={16} className="shrink-0"/>
+                <span>Encryption shown is illustrative (Caesar cipher) and NOT SECURE. For demo purposes only. Message hashes are simulated on-chain.</span>
+              </div>
+              <MessageList messages={messages} />
+              <MessageInput onSendMessage={handleSendMessage} isSending={isSending} />
+            </CardContent>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
