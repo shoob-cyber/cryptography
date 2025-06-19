@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/Logo";
 import { useAuth } from "@/hooks/use-auth-mock";
 import { useRouter } from "next/navigation";
-import { MessageCircle, ShieldQuestion, LogIn, LogOut, UserCircle, ListOrdered } from "lucide-react";
+import { MessageCircle, ShieldQuestion, LogIn, LogOut, UserCircle, ListOrdered, BarChartHorizontalBig } from "lucide-react";
 
 export function Header() {
   const { user, logout } = useAuth();
@@ -44,6 +44,13 @@ export function Header() {
               >
                 <ListOrdered size={18} />
                 Ledger
+              </Link>
+              <Link
+                href="/analytics"
+                className="flex items-center gap-1 text-foreground/80 hover:text-foreground transition-colors"
+              >
+                <BarChartHorizontalBig size={18} />
+                Analytics
               </Link>
             </>
           )}
