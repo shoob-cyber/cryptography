@@ -5,16 +5,18 @@ import type { ChatContact } from "@/types";
 import { ChatListItem } from "./ChatListItem";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Search, PlusCircle } from "lucide-react";
 import React from 'react';
 
 interface ChatListProps {
   contacts: ChatContact[];
   selectedContact: ChatContact | null;
   onSelectContact: (contact: ChatContact) => void;
+  onCreateNewChat: () => void;
 }
 
-export function ChatList({ contacts, selectedContact, onSelectContact }: ChatListProps) {
+export function ChatList({ contacts, selectedContact, onSelectContact, onCreateNewChat }: ChatListProps) {
   const [searchTerm, setSearchTerm] = React.useState("");
 
   const filteredContacts = contacts.filter(contact =>
@@ -51,10 +53,12 @@ export function ChatList({ contacts, selectedContact, onSelectContact }: ChatLis
           <p className="text-center text-sm text-muted-foreground p-4">No contacts found.</p>
         )}
       </ScrollArea>
-      {/* Optional: Footer for new chat button or settings */}
-      {/* <div className="p-2 border-t">
-        <Button variant="outline" className="w-full">New Chat</Button>
-      </div> */}
+      <div className="p-2 border-t mt-auto">
+        <Button variant="outline" className="w-full" onClick={onCreateNewChat}>
+          <PlusCircle className="mr-2 h-4 w-4" />
+          New Chat
+        </Button>
+      </div>
     </div>
   );
 }

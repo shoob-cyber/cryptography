@@ -127,7 +127,7 @@ export default function ChatPage() {
   useEffect(() => {
     if (user && selectedContact && chatStorageKey) {
       const loadMessages = async () => {
-        setMessages([]); // Clear messages when contact changes before loading new ones
+        setMessages([]); 
         let loadedMessages: Message[] = [];
         const storedMessagesRaw = localStorage.getItem(chatStorageKey);
 
@@ -146,7 +146,6 @@ export default function ChatPage() {
         }
 
         if (loadedMessages.length === 0) {
-          // Create default messages specific to the selected contact
           const defaultText1 = `Hello there! This is a default message from ${selectedContact.name}.`;
           const defaultText2 = `Hi ${selectedContact.name}! This is a default reply from ${user.name || user.email?.split('@')[0] || "me"}.`;
           
@@ -165,6 +164,10 @@ export default function ChatPage() {
               dataAiHint: selectedContact.dataAiHint,
               senderName: selectedContact.name,
               messageHash: await generateMessageHash(encryptedText1),
+              mockGasFee: "0.0012 ETH",
+              mockBlockNumber: 12345,
+              status: 'chain_confirmed',
+              isChainLogged: true,
             },
             {
               id: `default-${selectedContact.id}-2`,
@@ -177,6 +180,10 @@ export default function ChatPage() {
               dataAiHint: "user profile",
               senderName: user.name || user.email?.split('@')[0] || "You",
               messageHash: await generateMessageHash(encryptedText2), 
+              mockGasFee: "0.0015 ETH",
+              mockBlockNumber: 12346,
+              status: 'chain_confirmed',
+              isChainLogged: true,
             },
           ];
           localStorage.setItem(chatStorageKey, JSON.stringify(loadedMessages.map(msg => ({...msg, timestamp: msg.timestamp.toISOString() }))));
@@ -194,7 +201,7 @@ export default function ChatPage() {
       loadMessages();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, selectedContact, chatStorageKey]); // Note: Removed dependencies that might cause excessive reloads
+  }, [user, selectedContact, chatStorageKey]); 
 
   useEffect(() => {
     if (user && chatStorageKey && messages.length > 0) {
@@ -274,7 +281,7 @@ export default function ChatPage() {
             etherscanLinkVal = await getEtherscanLink(blockchainLog.transactionHash);
             console.log(`Message hash logged to blockchain. Tx: ${blockchainLog.transactionHash}`);
             toast({ title: "Message Logged", description: `Tx: ${blockchainLog.transactionHash.substring(0,10)}... Confirmed!`});
-          } else {
+          } else if (blockchainLog.finalStatus === 'chain_failed') {
              toast({ title: "Blockchain Log Failed", description: "Could not log message to blockchain.", variant: "destructive" });
           }
           
@@ -315,6 +322,21 @@ export default function ChatPage() {
     setSelectedContact(contact);
   };
 
+  const handleCreateNewChat = () => {
+    const newContactId = `contact-new-${Date.now()}`;
+    const newContactName = `New Contact ${contacts.filter(c => c.name.startsWith("New Contact")).length + 1}`;
+    const newContact: ChatContact = {
+      id: newContactId,
+      name: newContactName,
+      avatar: `https://placehold.co/100x100.png`, // Generic placeholder
+      dataAiHint: "person new",
+      lastMessage: "No messages yet...",
+      lastMessageTimestamp: Date.now(),
+    };
+    setContacts(prevContacts => [newContact, ...prevContacts]); // Add to top of list
+    setSelectedContact(newContact);
+  };
+
   if (authLoading || !user) {
     return (
       <div className="flex flex-grow items-center justify-center">
@@ -337,6 +359,7 @@ export default function ChatPage() {
           contacts={contacts}
           selectedContact={selectedContact}
           onSelectContact={handleSelectContact}
+          onCreateNewChat={handleCreateNewChat}
         />
       </div>
 
@@ -344,7 +367,7 @@ export default function ChatPage() {
       <div className="flex-1 flex flex-col bg-background">
         {!selectedContact ? (
           <div className="flex-grow flex items-center justify-center text-muted-foreground">
-            <p>Select a chat to start messaging.</p>
+            <p>Select a chat to start messaging, or create a new one.</p>
           </div>
         ) : (
           <>
