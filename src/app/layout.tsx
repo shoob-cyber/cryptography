@@ -3,6 +3,8 @@ import './globals.css';
 import { Header } from '@/components/Header';
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from '@/hooks/use-auth-mock';
+import { ThemeProvider } from '@/components/ThemeProvider';
+import { FloatingAIButton } from '@/components/FloatingAIButton';
 
 export const metadata: Metadata = {
   title: 'BlockTalk',
@@ -23,13 +25,21 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased min-h-screen flex flex-col">
-        <AuthProvider>
-          <Header />
-          <main className="flex-grow container mx-auto px-4 py-8">
-            {children}
-          </main>
-          <Toaster />
-        </AuthProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <AuthProvider>
+            <Header />
+            <main className="flex-grow container mx-auto px-4 py-8">
+              {children}
+            </main>
+            <Toaster />
+            <FloatingAIButton />
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

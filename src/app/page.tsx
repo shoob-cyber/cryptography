@@ -26,14 +26,6 @@ export default function AuthenticationPage() {
     );
   }
 
-  if (!user) {
-    return <AuthForm />;
-  }
-  
-  // If user is already logged in, this will be briefly shown before redirect
-  return (
-     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-        <p>Redirecting...</p>
-      </div>
-  );
+  // user will be null here if not logged in
+  return <AuthForm />;
 }

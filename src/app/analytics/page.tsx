@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
@@ -8,7 +7,7 @@ import type { Message } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Wallet, BookCheck, AlertTriangle, CheckCircle2, Clock, ListChecks, ArrowRightLeft, FileText, Bot, Network, Landmark } from "lucide-react";
-import { Bar, BarChart as RechartsBarChart, ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip, Legend, PieChart, Pie, Cell } from 'recharts';
+import { PieChart, Pie, Cell } from 'recharts';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 
 const CHAT_STORAGE_KEY_PREFIX = "blocktalk_chat_";
@@ -20,11 +19,11 @@ interface AnalyticsData {
   confirmedTransactions: number;
   pendingTransactions: number;
   failedTransactions: number;
-  averageConfirmationTimeMs: number; // Mocked
-  totalGasFeesEth: number; // Mocked
-  averageGasFeeEth: number; // Mocked
-  tamperedMessagesDetected: number; // Mocked
-  aiAdvisorInteractions: number; // Mocked
+  averageConfirmationTimeMs: number; 
+  totalGasFeesEth: number; 
+  averageGasFeeEth: number; 
+  tamperedMessagesDetected: number; 
+  aiAdvisorInteractions: number; 
 }
 
 const initialAnalyticsData: AnalyticsData = {
@@ -34,11 +33,11 @@ const initialAnalyticsData: AnalyticsData = {
   confirmedTransactions: 0,
   pendingTransactions: 0,
   failedTransactions: 0,
-  averageConfirmationTimeMs: 2500, // Mock value
+  averageConfirmationTimeMs: 2500, 
   totalGasFeesEth: 0,
   averageGasFeeEth: 0,
-  tamperedMessagesDetected: 0, // Mock value
-  aiAdvisorInteractions: 3, // Mock value, e.g. from previous sessions
+  tamperedMessagesDetected: 0, 
+  aiAdvisorInteractions: 3, 
 };
 
 const AnimatedCounter = ({ value, duration = 1000 }: { value: number, duration?: number }) => {
@@ -47,13 +46,26 @@ const AnimatedCounter = ({ value, duration = 1000 }: { value: number, duration?:
   useEffect(() => {
     let start = 0;
     const end = value;
-    if (start === end) return;
+    if (start === end && value !== 0) { // If value is 0, start immediately
+      setCount(0);
+      return;
+    }
+    if (start === end && value === 0){ // if value and start are both 0 then don't run animation
+       return;
+    }
+
 
     const totalMiliseconds = duration;
-    const incrementTime = (totalMiliseconds / end) || 0;
+    // Handle end === 0 to avoid division by zero
+    const incrementTime = end === 0 ? 0 : (totalMiliseconds / Math.abs(end - start)) || 0;
+
 
     const timer = setInterval(() => {
-      start += 1;
+      if (start < end) {
+        start += 1;
+      } else if (start > end) {
+        start -=1;
+      }
       setCount(start);
       if (start === end) clearInterval(timer);
     }, incrementTime);
@@ -123,7 +135,6 @@ export default function AnalyticsDashboardPage() {
           const totalGasFeesEth = totalGas;
           const averageGasFeeEth = gasCount > 0 ? totalGas / gasCount : 0;
           
-          // Using existing mock values for these as they are not easily derived from current local data
           const averageConfirmationTimeMs = initialAnalyticsData.averageConfirmationTimeMs; 
           const tamperedMessagesDetected = initialAnalyticsData.tamperedMessagesDetected;
           const aiAdvisorInteractions = initialAnalyticsData.aiAdvisorInteractions;
@@ -153,9 +164,9 @@ export default function AnalyticsDashboardPage() {
   }, [user]);
 
   const transactionStatusData = useMemo(() => [
-    { name: 'Confirmed', value: analyticsData.confirmedTransactions, fill: 'hsl(var(--chart-2))' }, // Green
-    { name: 'Pending', value: analyticsData.pendingTransactions, fill: 'hsl(var(--chart-4))' }, // Yellow
-    { name: 'Failed', value: analyticsData.failedTransactions, fill: 'hsl(var(--chart-1))' }, // Red
+    { name: 'Confirmed', value: analyticsData.confirmedTransactions, fill: 'var(--color-confirmed)' },
+    { name: 'Pending', value: analyticsData.pendingTransactions, fill: 'var(--color-pending)' },
+    { name: 'Failed', value: analyticsData.failedTransactions, fill: 'var(--color-failed)' },
   ], [analyticsData.confirmedTransactions, analyticsData.pendingTransactions, analyticsData.failedTransactions]);
   
   const chartConfig = {
@@ -164,7 +175,7 @@ export default function AnalyticsDashboardPage() {
     },
     confirmed: {
       label: "Confirmed",
-      color: "hsl(var(--chart-2))",
+      color: "hsl(var(--chart-2))", 
     },
     pending: {
       label: "Pending",
@@ -199,7 +210,14 @@ export default function AnalyticsDashboardPage() {
 
   return (
     <div className="container mx-auto py-8 space-y-8">
-      <Card>
+       <style jsx global>{`
+        :root {
+          --color-confirmed: hsl(var(--chart-2));
+          --color-pending: hsl(var(--chart-4));
+          --color-failed: hsl(var(--chart-1));
+        }
+      `}</style>
+      <Card className="shadow-lg">
         <CardHeader>
           <div className="flex items-center gap-2">
             <BarChart className="h-7 w-7 text-primary" />
@@ -285,7 +303,7 @@ export default function AnalyticsDashboardPage() {
             </CardHeader>
             <CardContent>
                 <p className="text-sm font-mono truncate" title={user.walletAddress || user.email || user.id}>
-                    {user.walletAddress ? `${user.walletAddress.substring(0,10)}...` : (user.email || 'N/A')}
+                    {user.walletAddress ? `${user.walletAddress.substring(0,10)}...${user.walletAddress.substring(user.walletAddress.length - 4)}` : (user.email || 'N/A')}
                 </p>
                 <p className="text-xs text-muted-foreground">Connected user identifier.</p>
             </CardContent>
@@ -298,7 +316,7 @@ export default function AnalyticsDashboardPage() {
             </CardHeader>
             <CardContent>
                 <p className="text-sm font-mono truncate" title={contractAddress}>
-                    {contractAddress.startsWith('0x') ? `${contractAddress.substring(0,10)}...` : contractAddress}
+                    {contractAddress.startsWith('0x') ? `${contractAddress.substring(0,10)}...${contractAddress.substring(contractAddress.length - 4)}` : contractAddress}
                 </p>
                 <p className="text-xs text-muted-foreground">Configured smart contract.</p>
             </CardContent>
@@ -316,11 +334,13 @@ export default function AnalyticsDashboardPage() {
           <CardDescription>Breakdown of (mock) on-chain transaction statuses.</CardDescription>
         </CardHeader>
         <CardContent>
-          {analyticsData.totalHashesLoggedOnChain > 0 ? (
-            <ChartContainer config={chartConfig} className="min-h-[250px] w-full">
-              <ResponsiveContainer width="100%" height={250}>
+          {(analyticsData.totalHashesLoggedOnChain > 0 || transactionStatusData.some(d => d.value > 0)) ? (
+            <ChartContainer config={chartConfig} className="min-h-[250px] w-full aspect-square sm:aspect-video">
                 <PieChart>
-                  <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                  <ChartTooltip 
+                    cursor={false}
+                    content={<ChartTooltipContent indicator="dot" hideLabel />} 
+                  />
                   <Pie
                     data={transactionStatusData}
                     dataKey="value"
@@ -329,29 +349,29 @@ export default function AnalyticsDashboardPage() {
                     cy="50%"
                     outerRadius={80}
                     labelLine={false}
-                    label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
+                    label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index, name }) => {
                       const RADIAN = Math.PI / 180;
-                      const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                      const radius = innerRadius + (outerRadius - innerRadius) * 1.3; // Adjust label position
                       const x = cx + radius * Math.cos(-midAngle * RADIAN);
                       const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                      if (percent === 0) return null; // Don't render label if value is 0
                       return (
-                        <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central">
-                          {`${transactionStatusData[index].name} (${(percent * 100).toFixed(0)}%)`}
+                        <text x={x} y={y} fill="hsl(var(--foreground))" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" className="text-xs">
+                          {`${name} (${(percent * 100).toFixed(0)}%)`}
                         </text>
                       );
                     }}
                   >
                     {transactionStatusData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                      <Cell key={`cell-${index}`} fill={entry.fill} stroke={entry.fill} />
                     ))}
                   </Pie>
-                   <ChartLegend content={<ChartLegendContent nameKey="name" />} />
+                   <ChartLegend content={<ChartLegendContent nameKey="name" />} className="flex items-center justify-center pt-4" />
                 </PieChart>
-              </ResponsiveContainer>
             </ChartContainer>
           ) : (
             <div className="text-center py-10 text-muted-foreground">
-              No on-chain transaction data yet to display.
+              No on-chain transaction data yet to display. Send some messages!
             </div>
           )}
         </CardContent>

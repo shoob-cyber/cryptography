@@ -40,7 +40,12 @@ export function MessageInput({ onSendMessage, isSending }: MessageInputProps) {
         }}
         disabled={isSending}
       />
-      <Button type="submit" size="icon" className="rounded-full" disabled={isSending || !text.trim()}>
+      <Button 
+        type="submit" 
+        size="icon" 
+        className="rounded-full transition-transform duration-150 active:scale-90" 
+        disabled={isSending || !text.trim()}
+      >
         <Send className="h-5 w-5" />
         <span className="sr-only">Send message</span>
       </Button>

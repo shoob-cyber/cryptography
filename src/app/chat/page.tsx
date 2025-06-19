@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -328,12 +327,12 @@ export default function ChatPage() {
     const newContact: ChatContact = {
       id: newContactId,
       name: newContactName,
-      avatar: `https://placehold.co/100x100.png`, // Generic placeholder
+      avatar: `https://placehold.co/100x100.png`, 
       dataAiHint: "person new",
       lastMessage: "No messages yet...",
       lastMessageTimestamp: Date.now(),
     };
-    setContacts(prevContacts => [newContact, ...prevContacts]); // Add to top of list
+    setContacts(prevContacts => [newContact, ...prevContacts]); 
     setSelectedContact(newContact);
   };
 
@@ -373,7 +372,7 @@ export default function ChatPage() {
           <>
             <CardHeader className="p-4 border-b">
               <div className="flex items-center gap-3">
-                <Avatar>
+                <Avatar className="shadow">
                   <AvatarImage src={selectedContact.avatar} alt={selectedContact.name} data-ai-hint={selectedContact.dataAiHint}/>
                   <AvatarFallback>{selectedContact.name.substring(0,1)}</AvatarFallback>
                 </Avatar>
@@ -381,7 +380,7 @@ export default function ChatPage() {
               </div>
             </CardHeader>
             <CardContent className="p-0 flex-grow overflow-hidden flex flex-col">
-              <div className="flex items-center gap-2 text-xs text-center p-2 bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300 border-b border-yellow-300 dark:border-yellow-700">
+              <div className="flex items-center gap-2 text-xs text-center p-2 bg-yellow-100 dark:bg-yellow-800/30 text-yellow-700 dark:text-yellow-300 border-b border-yellow-300 dark:border-yellow-700/50">
                 <ShieldAlert size={16} className="shrink-0"/>
                 <span>Encryption shown is illustrative (Caesar cipher) and NOT SECURE. For demo purposes only. Message hashes are simulated on-chain.</span>
               </div>

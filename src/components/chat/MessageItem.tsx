@@ -1,12 +1,10 @@
-
 "use client";
 
 import { Message } from "@/types";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { format } from 'date-fns';
-import { Badge } from "@/components/ui/badge";
-import { ExternalLink, Hash, CheckCircle2, Lock, Clock, AlertCircle, Loader2, Coins, Cubes } from "lucide-react";
+import { ExternalLink, Hash, CheckCircle2, Lock, Clock, AlertCircle, Loader2, ShieldQuestion, Fingerprint } from "lucide-react";
 import Link from "next/link";
 import {
   Tooltip,
@@ -31,7 +29,8 @@ export function MessageItem({ message, currentUserId }: MessageItemProps) {
   const shortHash = (hash?: string, length = 12) => {
     if (!hash) return "";
     if (hash.length <= length) return hash;
-    return `${hash.substring(0, length / 2)}...${hash.substring(hash.length - length / 2)}`;
+    const half = Math.floor(length / 2);
+    return `${hash.substring(0, half)}...${hash.substring(hash.length - (length - half))}`;
   }
 
   const getStatusTextAndIcon = () => {
@@ -49,7 +48,7 @@ export function MessageItem({ message, currentUserId }: MessageItemProps) {
       case 'failed':
         return { text: 'Failed', icon: <AlertCircle size={12} className="text-red-500" /> };
       default:
-        return { text: message.status || 'Status unknown', icon: null };
+        return { text: message.status || 'Status unknown', icon: <ShieldQuestion size={12} /> };
     }
   };
 
@@ -59,17 +58,17 @@ export function MessageItem({ message, currentUserId }: MessageItemProps) {
     <TooltipProvider delayDuration={300}>
       <div
         className={cn(
-          "flex items-end gap-2 max-w-[85%] sm:max-w-[75%] mb-4",
+          "flex items-end gap-2 max-w-[85%] sm:max-w-[75%] mb-4 group",
           isSender ? "ml-auto flex-row-reverse" : "mr-auto"
         )}
       >
-        <Avatar className="h-8 w-8 self-start mt-1">
+        <Avatar className="h-8 w-8 self-start mt-1 shadow">
           <AvatarImage src={message.avatar} alt={message.senderName || "User"} data-ai-hint={message.dataAiHint || "profile avatar"} />
           <AvatarFallback>{getInitials(message.senderName)}</AvatarFallback>
         </Avatar>
         <div
           className={cn(
-            "p-3 rounded-xl shadow-md flex flex-col",
+            "p-3 rounded-xl shadow-md flex flex-col transition-all duration-200 group-hover:shadow-lg",
             isSender
               ? "bg-primary text-primary-foreground rounded-tr-none"
               : "bg-card text-card-foreground rounded-tl-none border"
@@ -77,68 +76,72 @@ export function MessageItem({ message, currentUserId }: MessageItemProps) {
         >
           <p className="text-sm break-words">{message.decryptedText || message.text}</p>
           
-          <div className="mt-2 text-xs opacity-80 space-y-1">
+          <div className="mt-2 text-xs opacity-80 space-y-1.5">
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="flex items-center gap-1 cursor-default">
-                  <Hash size={12} /> 
-                  <span>{shortHash(message.messageHash)}</span>
+                <div className="flex items-center gap-1.5 cursor-default">
+                  <Lock size={12} className="text-blue-400 dark:text-blue-300"/> 
+                  <span>Illustrative Encryption</span>
                 </div>
               </TooltipTrigger>
               <TooltipContent side="bottom" align={isSender ? "end" : "start"}>
-                <p className="text-xs">Message Hash: {message.messageHash}</p>
+                <p className="text-xs">Message content uses illustrative Caesar cipher (not secure).</p>
               </TooltipContent>
             </Tooltip>
 
-            {message.isChainLogged && message.transactionHash && message.status === 'chain_confirmed' && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-1.5 cursor-default">
+                  <Fingerprint size={12} className="text-purple-500 dark:text-purple-400" /> 
+                  <span>{shortHash(message.messageHash, 16)}</span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" align={isSender ? "end" : "start"}>
+                <p className="text-xs font-mono">Message Hash (SHA-256): {message.messageHash}</p>
+              </TooltipContent>
+            </Tooltip>
+
+            {message.isChainLogged && message.transactionHash && (message.status === 'chain_confirmed' || message.status === 'chain_pending' || message.status === 'chain_failed') && (
               <>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="flex items-center gap-1 cursor-default text-green-600 dark:text-green-400">
-                      <CheckCircle2 size={12} />
-                      <span>On-chain: {shortHash(message.transactionHash)}</span>
-                      {message.etherscanLink && (
+                    <div className={cn("flex items-center gap-1.5 cursor-default", 
+                      message.status === 'chain_confirmed' && "text-green-600 dark:text-green-400",
+                      message.status === 'chain_pending' && "text-yellow-600 dark:text-yellow-400",
+                      message.status === 'chain_failed' && "text-red-600 dark:text-red-400"
+                    )}>
+                      {message.status === 'chain_confirmed' && <CheckCircle2 size={12} />}
+                      {message.status === 'chain_pending' && <Clock size={12} className="animate-pulse" />}
+                      {message.status === 'chain_failed' && <AlertCircle size={12} />}
+                      <span>{message.status === 'chain_confirmed' ? "On-chain" : message.status === 'chain_pending' ? "Chain Pending" : "Chain Failed"}: {shortHash(message.transactionHash)}</span>
+                      {message.etherscanLink && message.status !== 'chain_failed' && (
                         <Link href={message.etherscanLink} target="_blank" rel="noopener noreferrer" className="hover:underline" onClick={(e) => e.stopPropagation()}>
-                          <ExternalLink size={12} className="ml-1" />
+                          <ExternalLink size={12} className="ml-0.5" />
                         </Link>
                       )}
                     </div>
                   </TooltipTrigger>
                   <TooltipContent side="bottom" align={isSender ? "end" : "start"}>
-                    <p className="text-xs">Tx: {message.transactionHash}</p>
+                    <p className="text-xs font-mono">Tx: {message.transactionHash}</p>
                     {message.mockGasFee && <p className="text-xs">Gas: {message.mockGasFee}</p>}
-                    {message.mockBlockNumber && <p className="text-xs">Block: #{message.mockBlockNumber}</p>}
-                    {message.etherscanLink && <p className="text-xs">View on Etherscan</p>}
+                    {message.mockBlockNumber && message.status === 'chain_confirmed' && <p className="text-xs">Block: #{message.mockBlockNumber}</p>}
+                    {message.etherscanLink && message.status !== 'chain_failed' && <p className="text-xs">View on Etherscan</p>}
+                     {message.status === 'chain_failed' && <p className="text-xs text-red-500">Transaction failed to confirm.</p>}
                   </TooltipContent>
                 </Tooltip>
               </>
             )}
-             {message.status === 'chain_failed' && message.transactionHash && (
-                 <Tooltip>
-                    <TooltipTrigger asChild>
-                        <div className="flex items-center gap-1 cursor-default text-red-600 dark:text-red-400">
-                        <AlertCircle size={12} />
-                        <span>Chain Failed: {shortHash(message.transactionHash)}</span>
-                        </div>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" align={isSender ? "end" : "start"}>
-                        <p className="text-xs">Transaction failed to confirm on-chain.</p>
-                        {message.mockGasFee && <p className="text-xs">Attempted Gas: {message.mockGasFee}</p>}
-                    </TooltipContent>
-                </Tooltip>
-            )}
-
 
             {message.isSigned && message.signature && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                   <div className="flex items-center gap-1 cursor-default">
-                      <Lock size={12} className="text-blue-400" />
+                   <div className="flex items-center gap-1.5 cursor-default">
+                      <Fingerprint size={12} className="text-indigo-500 dark:text-indigo-400" />
                       <span>Signed: {shortHash(message.signature, 16)}</span>
                    </div>
                 </TooltipTrigger>
                  <TooltipContent side="bottom" align={isSender ? "end" : "start"}>
-                    <p className="text-xs">Signature: {message.signature}</p>
+                    <p className="text-xs font-mono">Signature: {message.signature}</p>
                  </TooltipContent>
               </Tooltip>
             )}
@@ -146,7 +149,7 @@ export function MessageItem({ message, currentUserId }: MessageItemProps) {
           
           <div className={cn(
               "text-xs mt-1.5 self-end flex items-center gap-1",
-              isSender ? "text-primary-foreground/70" : "text-muted-foreground"
+              isSender ? "text-primary-foreground/80" : "text-muted-foreground"
             )}>
             {statusIcon}
             <span>{statusText}</span>
