@@ -1,7 +1,8 @@
+
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { useAuth } from "@/hooks/use-auth-mock";
+import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
 import type { Message } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -97,9 +98,11 @@ export default function AnalyticsDashboardPage() {
         setIsLoading(true);
         let allMessages: Message[] = [];
         try {
+          // Note: This logic reads from localStorage, which is no longer being used for chat messages
+          // after the migration to Firebase. This page will show 0s until it is updated to read from Firestore.
           for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
-            if (key && key.startsWith(`${CHAT_STORAGE_KEY_PREFIX}${user.id}_`)) {
+            if (key && user.uid && key.startsWith(`${CHAT_STORAGE_KEY_PREFIX}${user.uid}_`)) {
               const storedMessagesRaw = localStorage.getItem(key);
               if (storedMessagesRaw) {
                 const parsedMessages: Message[] = JSON.parse(storedMessagesRaw).map((msg: any) => ({
@@ -302,7 +305,7 @@ export default function AnalyticsDashboardPage() {
                 <Wallet className="h-5 w-5 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-                <p className="text-sm font-mono truncate" title={user.walletAddress || user.email || user.id}>
+                <p className="text-sm font-mono truncate" title={user.walletAddress || user.email || user.uid}>
                     {user.walletAddress ? `${user.walletAddress.substring(0,10)}...${user.walletAddress.substring(user.walletAddress.length - 4)}` : (user.email || 'N/A')}
                 </p>
                 <p className="text-xs text-muted-foreground">Connected user identifier.</p>

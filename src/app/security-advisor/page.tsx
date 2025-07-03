@@ -3,7 +3,7 @@
 
 import { SecurityAdvisorForm } from "@/components/security/SecurityAdvisorForm";
 import { MessageIntegrityChecker } from "@/components/security/MessageIntegrityChecker";
-import { useAuth } from "@/hooks/use-auth-mock";
+import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";

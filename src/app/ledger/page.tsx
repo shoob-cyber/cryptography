@@ -1,7 +1,8 @@
+
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { useAuth } from "@/hooks/use-auth-mock";
+import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
 import type { Message } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -64,9 +65,11 @@ export default function BlockchainLedgerPage() {
         setIsLoading(true);
         let allMessages: Message[] = [];
         try {
+          // Note: This logic reads from localStorage, which is no longer being used for chat messages
+          // after the migration to Firebase. This page will be empty until it is updated to read from Firestore.
           for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
-            if (key && key.startsWith(`${CHAT_STORAGE_KEY_PREFIX}${user.id}_`)) {
+            if (key && user.uid && key.startsWith(`${CHAT_STORAGE_KEY_PREFIX}${user.uid}_`)) {
               const storedMessagesRaw = localStorage.getItem(key);
               if (storedMessagesRaw) {
                 const parsedMessages: Message[] = JSON.parse(storedMessagesRaw).map((msg: any) => ({
@@ -189,6 +192,7 @@ export default function BlockchainLedgerPage() {
                 <TableBody>
                   {ledgerEntries.map((entry) => {
                     const statusInfo = getStatusInfo(entry.status);
+                    const entryTimestamp = entry.timestamp ? (entry.timestamp as any).toDate ? (entry.timestamp as any).toDate() : new Date(entry.timestamp) : new Date();
                     return (
                       <TableRow key={entry.id}>
                         <TableCell className="font-medium truncate max-w-[150px] sm:max-w-[200px]">
@@ -214,10 +218,10 @@ export default function BlockchainLedgerPage() {
                         <TableCell className="text-xs text-muted-foreground">
                            <Tooltip>
                             <TooltipTrigger asChild>
-                                <span>{format(new Date(entry.timestamp), "MMM d, HH:mm:ss")}</span>
+                                <span>{format(entryTimestamp, "MMM d, HH:mm:ss")}</span>
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p>{format(new Date(entry.timestamp), "PPpp")}</p>
+                              <p>{format(entryTimestamp, "PPpp")}</p>
                             </TooltipContent>
                           </Tooltip>
                         </TableCell>
