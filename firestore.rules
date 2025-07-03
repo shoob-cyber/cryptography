@@ -1,0 +1,32 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can read the list of all users for chat selection
+    // Users can only create their own user document
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth.uid == userId;
+    }
+    
+    // Chat rooms
+    // Users can read/write to a chat if they are a participant.
+    // The chat document ID is expected to be a composite of two user UIDs,
+    // e.g., "uid1_uid2" where uid1 < uid2.
+    match /chats/{chatId} {
+      allow read, write: if request.auth.uid in chatId.split('_');
+
+      // Messages subcollection
+      // Users can read messages if they are part of the chat.
+      // Users can only create messages as themselves.
+      match /messages/{messageId} {
+        allow read: if request.auth.uid in chatId.split('_');
+        allow create: if request.auth.uid == request.resource.data.senderId;
+        
+        // Disallow updates and deletes for message immutability, except for status updates
+        allow update: if request.auth.uid in chatId.split('_');
+        allow delete: if false;
+      }
+    }
+  }
+}

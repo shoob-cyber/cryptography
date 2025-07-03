@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Message } from "@/types";
@@ -48,11 +49,13 @@ export function MessageItem({ message, currentUserId }: MessageItemProps) {
       case 'failed':
         return { text: 'Failed', icon: <AlertCircle size={12} className="text-red-500" /> };
       default:
-        return { text: message.status || 'Status unknown', icon: <ShieldQuestion size={12} /> };
+        return { text: 'Sent', icon: <CheckCircle2 size={12} /> };
     }
   };
 
   const { text: statusText, icon: statusIcon } = getStatusTextAndIcon();
+
+  const messageTimestamp = message.timestamp ? message.timestamp.toDate() : new Date();
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -154,7 +157,7 @@ export function MessageItem({ message, currentUserId }: MessageItemProps) {
             {statusIcon}
             <span>{statusText}</span>
             <span className="mx-1">&bull;</span>
-            <span>{format(new Date(message.timestamp), "p")}</span>
+            <span>{format(messageTimestamp, "p")}</span>
           </div>
         </div>
       </div>

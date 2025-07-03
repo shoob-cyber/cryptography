@@ -1,8 +1,9 @@
+
 import type {Metadata} from 'next';
 import './globals.css';
 import { Header } from '@/components/Header';
 import { Toaster } from "@/components/ui/toaster";
-import { AuthProvider } from '@/hooks/use-auth-mock';
+import { AuthProvider } from '@/hooks/use-auth';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { FloatingAIButton } from '@/components/FloatingAIButton';
 

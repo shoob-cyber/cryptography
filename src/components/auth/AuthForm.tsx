@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -6,8 +7,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAuth } from "@/hooks/use-auth-mock";
-import { Mail, ShieldCheck, Chrome } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { Mail, ShieldCheck, Chrome, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const MetaMaskIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="mr-2">
@@ -17,30 +19,39 @@ const MetaMaskIcon = () => (
 
 
 export function AuthForm() {
-  const { login, loading } = useAuth();
+  const { login, signup, signInWithGoogle, loading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [activeTab, setActiveTab] = useState("email");
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("login");
 
-  const handleEmailLogin = (e: React.FormEvent) => {
+  const handleAuthAction = async (action: 'login' | 'signup', e: React.FormEvent) => {
     e.preventDefault();
-    login('email', { email, password });
+    setError(null);
+    try {
+      if (action === 'login') {
+        await login(email, password);
+      } else {
+        await signup(email, password);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'An error occurred.');
+    }
   };
 
-  const handleGoogleLogin = () => {
-    login('google');
+  const handleGoogleLogin = async () => {
+     setError(null);
+    try {
+      await signInWithGoogle();
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'An error occurred.');
+    }
   };
 
   const handleMetaMaskConnect = async () => {
-    if (typeof window.ethereum !== 'undefined') {
-      try {
-        login('metamask', { wallet: '0x123...abc' }); 
-      } catch (error) {
-        console.error("MetaMask connection failed", error);
-      }
-    } else {
-      console.log('MetaMask is not installed!');
-    }
+    setError("MetaMask connection is not fully integrated yet.");
   };
 
   return (
@@ -63,54 +74,68 @@ export function AuthForm() {
           <CardDescription>Secure, decentralized communication.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="email" value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="email">Email</TabsTrigger>
-              <TabsTrigger value="social">Social & Wallet</TabsTrigger>
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Authentication Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          <Tabs defaultValue="login" value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="login">Login</TabsTrigger>
+              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+              <TabsTrigger value="social">Social</TabsTrigger>
             </TabsList>
-            <TabsContent value="email" className="transition-opacity duration-300 data-[state=inactive]:opacity-0 data-[state=active]:opacity-100">
-              <form onSubmit={handleEmailLogin}>
+            
+            {/* Login Tab */}
+            <TabsContent value="login">
+              <form onSubmit={(e) => handleAuthAction('login', e)}>
                 <div className="space-y-4 pt-4">
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input 
-                      id="email" 
-                      type="email" 
-                      placeholder="m@example.com" 
-                      required 
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      disabled={loading}
-                      className="focus:ring-primary focus:border-primary"
-                    />
+                    <Label htmlFor="login-email">Email</Label>
+                    <Input id="login-email" type="email" placeholder="m@example.com" required value={email} onChange={(e) => setEmail(e.target.value)} disabled={loading} className="focus:ring-primary focus:border-primary" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <Input 
-                      id="password" 
-                      type="password" 
-                      required 
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      disabled={loading}
-                      className="focus:ring-primary focus:border-primary"
-                    />
+                    <Label htmlFor="login-password">Password</Label>
+                    <Input id="login-password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} disabled={loading} className="focus:ring-primary focus:border-primary" />
                   </div>
                   <Button type="submit" className="w-full transition-transform active:scale-95" disabled={loading}>
-                    {loading && activeTab === 'email' ? "Logging in..." : "Login with Email"}
+                    {loading ? "Logging in..." : "Login"}
                   </Button>
                 </div>
               </form>
             </TabsContent>
-            <TabsContent value="social" className="transition-opacity duration-300 data-[state=inactive]:opacity-0 data-[state=active]:opacity-100">
+
+            {/* Sign Up Tab */}
+            <TabsContent value="signup">
+              <form onSubmit={(e) => handleAuthAction('signup', e)}>
+                <div className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-email">Email</Label>
+                    <Input id="signup-email" type="email" placeholder="m@example.com" required value={email} onChange={(e) => setEmail(e.target.value)} disabled={loading} className="focus:ring-primary focus:border-primary" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-password">Password</Label>
+                    <Input id="signup-password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} disabled={loading} className="focus:ring-primary focus:border-primary" />
+                  </div>
+                  <Button type="submit" className="w-full transition-transform active:scale-95" disabled={loading}>
+                    {loading ? "Signing up..." : "Sign Up"}
+                  </Button>
+                </div>
+              </form>
+            </TabsContent>
+            
+            {/* Social Tab */}
+            <TabsContent value="social">
               <div className="space-y-4 pt-4">
                 <Button variant="outline" className="w-full transition-transform active:scale-95" onClick={handleGoogleLogin} disabled={loading}>
                   <Chrome className="mr-2 h-5 w-5" /> 
-                  {loading && activeTab === 'social' ? "Connecting..." : "Sign in with Google"}
+                  {loading ? "Connecting..." : "Continue with Google"}
                 </Button>
                 <Button variant="outline" className="w-full transition-transform active:scale-95" onClick={handleMetaMaskConnect} disabled={loading}>
                   <MetaMaskIcon /> 
-                  <span className="ml-1">{loading && activeTab === 'social' ? "Connecting..." : "Connect MetaMask"}</span>
+                  <span className="ml-1">{loading ? "Connecting..." : "Connect MetaMask"}</span>
                 </Button>
               </div>
             </TabsContent>
@@ -118,7 +143,7 @@ export function AuthForm() {
         </CardContent>
         <CardFooter className="flex justify-center text-sm">
           <p className="text-muted-foreground">
-            New here? Sign up options are available.
+            Select an option to get started.
           </p>
         </CardFooter>
       </Card>

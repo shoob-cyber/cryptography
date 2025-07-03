@@ -1,9 +1,10 @@
+
 "use client";
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/Logo";
-import { useAuth } from "@/hooks/use-auth-mock";
+import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
 import { MessageCircle, ShieldQuestion, LogIn, LogOut, UserCircle, ListOrdered, BarChartHorizontalBig, Sun, Moon } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -19,8 +20,8 @@ export function Header() {
   const router = useRouter();
   const { setTheme } = useTheme();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     router.push("/");
   };
 
@@ -87,7 +88,7 @@ export function Header() {
             <>
               <span className="text-sm text-foreground/80 hidden sm:inline">
                 <UserCircle className="inline mr-1 h-5 w-5" />
-                {user.email || user.walletAddress?.substring(0, 6) + "..."}
+                {user.name || user.email}
               </span>
               <Button variant="outline" size="sm" onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" /> Logout

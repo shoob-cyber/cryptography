@@ -1,10 +1,11 @@
+
 "use client";
 
 import { Message } from "@/types";
 import { MessageItem } from "./MessageItem";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import React, { useEffect, useRef } from "react";
-import { useAuth } from "@/hooks/use-auth-mock";
+import { useAuth } from "@/hooks/use-auth";
 
 interface MessageListProps {
   messages: Message[];
@@ -30,11 +31,11 @@ export function MessageList({ messages }: MessageListProps) {
       <div className="space-y-4">
         {messages.length === 0 && (
           <div className="text-center text-muted-foreground py-10">
-            No messages yet. Start a conversation!
+            No messages yet. Be the first to send a message!
           </div>
         )}
         {messages.map((msg) => (
-          <MessageItem key={msg.id} message={msg} currentUserId={user.id} />
+          <MessageItem key={msg.id} message={msg} currentUserId={user.uid} />
         ))}
       </div>
     </ScrollArea>

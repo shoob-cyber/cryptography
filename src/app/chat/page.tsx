@@ -1,11 +1,12 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
 import { MessageList } from "@/components/chat/MessageList";
 import { MessageInput } from "@/components/chat/MessageInput";
 import { ChatList } from "@/components/chat/ChatList";
-import type { Message, ChatContact } from "@/types";
-import { useAuth } from "@/hooks/use-auth-mock";
+import type { Message, ChatContact, UserProfile } from "@/types";
+import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -13,8 +14,20 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { logMessageToBlockchain, getEtherscanLink } from "@/lib/blockchainUtils";
 import { toast } from "@/hooks/use-toast";
 import { ShieldAlert } from "lucide-react";
-
-const CHAT_STORAGE_KEY_PREFIX = "blocktalk_chat_";
+import { db } from "@/lib/firebase";
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  orderBy,
+  addDoc,
+  serverTimestamp,
+  doc,
+  updateDoc,
+  limit,
+  setDoc
+} from "firebase/firestore";
 
 // --- Illustrative Cryptography (NOT SECURE) ---
 const illustrativeCipher = (text: string, shift: number, encrypt: boolean): string => {
@@ -74,42 +87,13 @@ export const generateMessageHash = async (text: string): Promise<string> => {
 };
 // --- End Message Hashing ---
 
-const initialContacts: ChatContact[] = [
-  {
-    id: "contact-alice-123",
-    name: "Alice Wonderland",
-    avatar: "https://placehold.co/100x100.png",
-    dataAiHint: "female person",
-    lastMessage: "Thinking about cryptography...",
-    lastMessageTimestamp: Date.now() - 1000 * 60 * 15,
-  },
-  {
-    id: "contact-bob-456",
-    name: "Bob The Builder",
-    avatar: "https://placehold.co/100x100.png",
-    dataAiHint: "male construction",
-    lastMessage: "Can we secure it?",
-    lastMessageTimestamp: Date.now() - 1000 * 60 * 60 * 2,
-  },
-  {
-    id: "contact-charlie-789",
-    name: "Charlie Brown",
-    avatar: "https://placehold.co/100x100.png",
-    dataAiHint: "boy character",
-    lastMessage: "Good grief!",
-    lastMessageTimestamp: Date.now() - 1000 * 60 * 60 * 24,
-  }
-];
-
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isSending, setIsSending] = useState(false);
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [contacts, setContacts] = useState<ChatContact[]>(initialContacts);
+  const [contacts, setContacts] = useState<ChatContact[]>([]);
   const [selectedContact, setSelectedContact] = useState<ChatContact | null>(null);
-
-  const chatStorageKey = user && selectedContact ? `${CHAT_STORAGE_KEY_PREFIX}${user.id}_${selectedContact.id}` : null;
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -117,223 +101,152 @@ export default function ChatPage() {
     }
   }, [user, authLoading, router]);
 
+  // Fetch contacts (other users) from Firestore
   useEffect(() => {
-    if (user && contacts.length > 0 && !selectedContact) {
-      setSelectedContact(contacts[0]);
-    }
-  }, [user, contacts, selectedContact]);
+    if (!user) return;
 
-  useEffect(() => {
-    if (user && selectedContact && chatStorageKey) {
-      const loadMessages = async () => {
-        setMessages([]); 
-        let loadedMessages: Message[] = [];
-        const storedMessagesRaw = localStorage.getItem(chatStorageKey);
-
-        if (storedMessagesRaw) {
-          try {
-            const parsedMessages = JSON.parse(storedMessagesRaw).map((msg: any) => ({
-              ...msg,
-              timestamp: new Date(msg.timestamp),
-              messageHash: msg.messageHash || '', 
-            }));
-            loadedMessages = parsedMessages;
-          } catch (e) {
-            console.error("Failed to parse stored messages, clearing:", e);
-            localStorage.removeItem(chatStorageKey);
-          }
+    const usersCollectionRef = collection(db, 'users');
+    const q = query(usersCollectionRef, where('uid', '!=', user.uid));
+    
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const usersList: ChatContact[] = [];
+        querySnapshot.forEach((doc) => {
+            const data = doc.data() as UserProfile;
+            usersList.push({
+                ...data,
+                lastMessage: "Click to start chatting", // Placeholder
+            });
+        });
+        setContacts(usersList);
+        if (!selectedContact && usersList.length > 0) {
+          // Find if the previously selected contact is still in the list
+          const prevSelected = usersList.find(c => c.uid === selectedContact?.uid);
+          setSelectedContact(prevSelected || usersList[0]);
         }
+    });
 
-        if (loadedMessages.length === 0) {
-          const defaultText1 = `Hello there! This is a default message from ${selectedContact.name}.`;
-          const defaultText2 = `Hi ${selectedContact.name}! This is a default reply from ${user.name || user.email?.split('@')[0] || "me"}.`;
-          
-          const encryptedText1 = await mockEncrypt(defaultText1);
-          const encryptedText2 = await mockEncrypt(defaultText2);
+    return () => unsubscribe();
+  }, [user, selectedContact]);
 
-          loadedMessages = [
-            {
-              id: `default-${selectedContact.id}-1`,
-              text: encryptedText1,
-              sender: "other",
-              senderId: selectedContact.id,
-              receiverId: user.id,
-              timestamp: new Date(Date.now() - 1000 * 60 * 5),
-              avatar: selectedContact.avatar,
-              dataAiHint: selectedContact.dataAiHint,
-              senderName: selectedContact.name,
-              messageHash: await generateMessageHash(encryptedText1),
-              mockGasFee: "0.0012 ETH",
-              mockBlockNumber: 12345,
-              status: 'chain_confirmed',
-              isChainLogged: true,
-            },
-            {
-              id: `default-${selectedContact.id}-2`,
-              text: encryptedText2,
-              sender: "user",
-              senderId: user.id,
-              receiverId: selectedContact.id,
-              timestamp: new Date(Date.now() - 1000 * 60 * 3),
-              avatar: user.avatarUrl || "https://placehold.co/100x100.png",
-              dataAiHint: "user profile",
-              senderName: user.name || user.email?.split('@')[0] || "You",
-              messageHash: await generateMessageHash(encryptedText2), 
-              mockGasFee: "0.0015 ETH",
-              mockBlockNumber: 12346,
-              status: 'chain_confirmed',
-              isChainLogged: true,
-            },
-          ];
-          localStorage.setItem(chatStorageKey, JSON.stringify(loadedMessages.map(msg => ({...msg, timestamp: msg.timestamp.toISOString() }))));
-        }
-        
-        const processedMessages = await Promise.all(
-          loadedMessages.map(async (msg) => ({
-            ...msg,
-            decryptedText: await mockDecrypt(msg.text),
-            messageHash: msg.messageHash || await generateMessageHash(msg.text), 
-          }))
-        );
-        setMessages(processedMessages);
-      };
-      loadMessages();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, selectedContact, chatStorageKey]); 
 
+  // Listen for real-time messages for the selected chat
   useEffect(() => {
-    if (user && chatStorageKey && messages.length > 0) {
-      const messagesToStore = messages.map(msg => ({
-        id: msg.id,
-        text: msg.text, 
-        sender: msg.sender,
-        senderId: msg.senderId,
-        receiverId: msg.receiverId,
-        timestamp: msg.timestamp.toISOString(),
-        messageHash: msg.messageHash,
-        status: msg.status,
-        avatar: msg.avatar,
-        dataAiHint: msg.dataAiHint,
-        senderName: msg.senderName,
-        isChainLogged: msg.isChainLogged,
-        transactionHash: msg.transactionHash,
-        etherscanLink: msg.etherscanLink,
-        isSigned: msg.isSigned,
-        signature: msg.signature,
-        mockGasFee: msg.mockGasFee,
-        mockBlockNumber: msg.mockBlockNumber,
-      }));
-      localStorage.setItem(chatStorageKey, JSON.stringify(messagesToStore));
+    if (!user || !selectedContact) {
+      setMessages([]);
+      return;
+    };
+
+    const getChatId = (uid1: string, uid2: string) => {
+        return uid1 < uid2 ? `${uid1}_${uid2}` : `${uid2}_${uid1}`;
     }
-  }, [messages, user, chatStorageKey]);
+    const chatId = getChatId(user.uid, selectedContact.uid);
+    const messagesCollectionRef = collection(db, 'chats', chatId, 'messages');
+    const q = query(messagesCollectionRef, orderBy('timestamp', 'asc'), limit(100));
+
+    const unsubscribe = onSnapshot(q, async (querySnapshot) => {
+        const loadedMessages: Message[] = [];
+        for (const doc of querySnapshot.docs) {
+            const data = doc.data();
+            const decryptedText = await mockDecrypt(data.text);
+            loadedMessages.push({
+                id: doc.id,
+                ...data,
+                sender: data.senderId === user.uid ? 'user' : 'other',
+                decryptedText,
+                timestamp: data.timestamp,
+            } as Message);
+        }
+        setMessages(loadedMessages);
+    }, (error) => {
+      console.error("Error fetching messages: ", error);
+      toast({ title: "Error", description: "Could not fetch messages.", variant: "destructive" });
+    });
+    
+    return () => unsubscribe();
+  }, [user, selectedContact]); 
 
   const handleSendMessage = async (text: string) => {
-    if (!user || !selectedContact) return;
+    if (!user || !selectedContact || isSending) return;
+
     setIsSending(true);
 
-    const newMessageId = Date.now().toString();
-    const tempMessage: Message = {
-      id: newMessageId,
-      text: text, 
-      decryptedText: text, 
-      sender: "user",
-      senderId: user.id,
-      receiverId: selectedContact.id,
-      timestamp: new Date(),
-      status: 'sending',
-      avatar: user.avatarUrl || "https://placehold.co/100x100.png",
-      dataAiHint: "user profile",
-      senderName: user.name || user.email?.split('@')[0] || "You",
-      messageHash: await generateMessageHash(text), 
-    };
-    setMessages((prev) => [...prev, tempMessage]);
+    const getChatId = (uid1: string, uid2: string) => uid1 < uid2 ? `${uid1}_${uid2}` : `${uid2}_${uid1}`;
+    const chatId = getChatId(user.uid, selectedContact.uid);
+    const messagesCollectionRef = collection(db, 'chats', chatId, 'messages');
+    
+    const chatDocRef = doc(db, 'chats', chatId);
+    await setDoc(chatDocRef, { 
+      participants: [user.uid, selectedContact.uid],
+      lastUpdated: serverTimestamp()
+    }, { merge: true });
 
     try {
-      const encryptedText = await mockEncrypt(text);
-      const finalMessageHash = await generateMessageHash(encryptedText); 
+        const encryptedText = await mockEncrypt(text);
+        const finalMessageHash = await generateMessageHash(encryptedText);
 
-      setMessages((prev) => prev.map(msg => 
-        msg.id === newMessageId ? { ...msg, text: encryptedText, messageHash: finalMessageHash, status: 'sent' } : msg
-      ));
-      
-      const shouldLogToBlockchain = true; 
-
-      if (shouldLogToBlockchain) {
-        setMessages((prev) => prev.map(msg => 
-          msg.id === newMessageId ? { ...msg, status: 'chain_pending' } : msg
-        ));
-
-        try {
-          const senderAddress = user.walletAddress || user.id; 
-          const receiverAddress = selectedContact.id; 
-
-          const blockchainLog = await logMessageToBlockchain({
-            senderAddress,
-            receiverAddress,
-            messageHash: finalMessageHash,
-            timestamp: tempMessage.timestamp.getTime(),
-          });
-          
-          let etherscanLinkVal = undefined;
-          if (blockchainLog.finalStatus === 'chain_confirmed' && blockchainLog.transactionHash) {
-            etherscanLinkVal = await getEtherscanLink(blockchainLog.transactionHash);
-            console.log(`Message hash logged to blockchain. Tx: ${blockchainLog.transactionHash}`);
-            toast({ title: "Message Logged", description: `Tx: ${blockchainLog.transactionHash.substring(0,10)}... Confirmed!`});
-          } else if (blockchainLog.finalStatus === 'chain_failed') {
-             toast({ title: "Blockchain Log Failed", description: "Could not log message to blockchain.", variant: "destructive" });
-          }
-          
-          const finalSentMessage: Message = {
-            ...tempMessage,
+        const newMessageRef = await addDoc(messagesCollectionRef, {
             text: encryptedText,
+            senderId: user.uid,
+            receiverId: selectedContact.uid,
+            timestamp: serverTimestamp(),
             messageHash: finalMessageHash,
-            status: blockchainLog.finalStatus,
-            isChainLogged: blockchainLog.finalStatus === 'chain_confirmed',
-            transactionHash: blockchainLog.transactionHash,
-            etherscanLink: etherscanLinkVal,
-            mockGasFee: blockchainLog.mockGasFee,
-            mockBlockNumber: blockchainLog.mockBlockNumber,
-          };
-          setMessages((prev) => prev.map(msg => msg.id === newMessageId ? finalSentMessage : msg));
+            status: 'chain_pending' // Initial status
+        });
+        
+        // The real-time listener will display the message with 'pending' status.
+        // Now, perform the mock blockchain logging and update the message doc.
+        try {
+            const blockchainLog = await logMessageToBlockchain({
+                senderAddress: user.walletAddress || user.uid,
+                receiverAddress: selectedContact.uid,
+                messageHash: finalMessageHash,
+                timestamp: Date.now(),
+            });
+            
+            const etherscanLinkVal = blockchainLog.finalStatus === 'chain_confirmed' && blockchainLog.transactionHash
+                ? await getEtherscanLink(blockchainLog.transactionHash)
+                : undefined;
+            
+            await updateDoc(newMessageRef, {
+                status: blockchainLog.finalStatus,
+                isChainLogged: blockchainLog.finalStatus === 'chain_confirmed',
+                transactionHash: blockchainLog.transactionHash,
+                etherscanLink: etherscanLinkVal,
+                mockGasFee: blockchainLog.mockGasFee,
+                mockBlockNumber: blockchainLog.mockBlockNumber,
+            });
 
+            if (blockchainLog.finalStatus === 'chain_confirmed') {
+                toast({ title: "Message Logged", description: `Tx: ${blockchainLog.transactionHash.substring(0,10)}... Confirmed!`});
+            } else if (blockchainLog.finalStatus === 'chain_failed') {
+                toast({ title: "Blockchain Log Failed", description: "Could not log message.", variant: "destructive" });
+            }
         } catch (chainError) {
-          console.error("Blockchain logging error:", chainError);
-          toast({ title: "Blockchain Error", description: "Failed to log message to blockchain.", variant: "destructive" });
-          setMessages((prev) => prev.map(msg => msg.id === newMessageId ? {...msg, status: 'chain_failed'} : msg));
+            console.error("Blockchain logging error:", chainError);
+            toast({ title: "Blockchain Error", description: "Failed to log message.", variant: "destructive" });
+            await updateDoc(newMessageRef, { status: 'chain_failed' });
         }
-      } else {
-         setMessages((prev) => prev.map(msg => 
-          msg.id === newMessageId ? { ...msg, text: encryptedText, messageHash: finalMessageHash, status: 'sent' } : msg
-        ));
-      }
-      
+
     } catch (error) {
-      console.error("Failed to send message:", error);
-      setMessages((prev) => prev.map(msg => msg.id === newMessageId ? {...msg, status: 'failed'} : msg));
-      toast({ title: "Message Send Error", description: "Failed to encrypt or process message.", variant: "destructive" });
+        console.error("Failed to send message:", error);
+        toast({ title: "Message Send Error", description: "Failed to send message.", variant: "destructive" });
     } finally {
-      setIsSending(false);
+        setIsSending(false);
     }
   };
+
 
   const handleSelectContact = (contact: ChatContact) => {
     setSelectedContact(contact);
   };
 
   const handleCreateNewChat = () => {
-    const newContactId = `contact-new-${Date.now()}`;
-    const newContactName = `New Contact ${contacts.filter(c => c.name.startsWith("New Contact")).length + 1}`;
-    const newContact: ChatContact = {
-      id: newContactId,
-      name: newContactName,
-      avatar: `https://placehold.co/100x100.png`, 
-      dataAiHint: "person new",
-      lastMessage: "No messages yet...",
-      lastMessageTimestamp: Date.now(),
-    };
-    setContacts(prevContacts => [newContact, ...prevContacts]); 
-    setSelectedContact(newContact);
+    // This functionality should now ideally allow searching for users in the database
+    // For now, this is a placeholder. A real implementation would involve a user search modal.
+    toast({
+      title: "Feature Coming Soon",
+      description: "Creating new chats by searching for users is under development."
+    })
   };
 
   if (authLoading || !user) {
@@ -366,7 +279,7 @@ export default function ChatPage() {
       <div className="flex-1 flex flex-col bg-background">
         {!selectedContact ? (
           <div className="flex-grow flex items-center justify-center text-muted-foreground">
-            <p>Select a chat to start messaging, or create a new one.</p>
+            <p>Select a chat to start messaging.</p>
           </div>
         ) : (
           <>

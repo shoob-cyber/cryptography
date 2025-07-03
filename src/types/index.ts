@@ -1,31 +1,40 @@
 
-export interface Message {
-  id: string;
-  text: string; // This will store the encrypted/ciphered text
-  decryptedText?: string; // For UI display, derived from 'text'
-  sender: 'user' | 'other';
-  senderId: string;
-  receiverId: string;
-  timestamp: Date;
-  messageHash: string; // Hash of the (encrypted) message content - will always be present
-  status?: 'sending' | 'sent' | 'delivered' | 'read' | 'failed' | 'chain_pending' | 'chain_confirmed' | 'chain_failed';
-  avatar?: string;
-  dataAiHint?: string; // For placeholder image generation
-  senderName?: string;
-  isChainLogged?: boolean; // True if the message hash is logged on the blockchain
-  transactionHash?: string; // Blockchain transaction hash
-  etherscanLink?: string; // Link to view the transaction on Etherscan
-  isSigned?: boolean; // True if the message was signed by the sender's wallet
-  signature?: string; // The message signature
-  mockGasFee?: string; // Simulated gas fee for the transaction
-  mockBlockNumber?: number; // Simulated block number of confirmation
+import type { Timestamp } from "firebase/firestore";
+
+export interface UserProfile {
+  uid: string;
+  name: string;
+  email: string | null;
+  avatar: string;
+  dataAiHint?: string;
+  walletAddress?: string;
 }
 
-export interface ChatContact {
-  id: string;
-  name: string;
-  avatar: string;
-  dataAiHint: string;
+export interface Message {
+  id: string; // Document ID from Firestore
+  text: string; // This will store the encrypted/ciphered text
+  decryptedText?: string; // For UI display, derived from 'text'
+  sender?: 'user' | 'other'; // This will be derived client-side
+  senderId: string; // UID of the sender
+  receiverId: string; // UID of the receiver
+  timestamp: Timestamp; // Firestore Timestamp
+  messageHash: string; // Hash of the (encrypted) message content
+  status?: 'sending' | 'sent' | 'delivered' | 'read' | 'failed' | 'chain_pending' | 'chain_confirmed' | 'chain_failed';
+  avatar?: string;
+  dataAiHint?: string;
+  senderName?: string;
+  isChainLogged?: boolean;
+  transactionHash?: string;
+  etherscanLink?: string;
+  isSigned?: boolean;
+  signature?: string;
+  mockGasFee?: string;
+  mockBlockNumber?: number;
+}
+
+
+// ChatContact is essentially a user profile we can chat with
+export interface ChatContact extends UserProfile {
   lastMessage?: string;
   lastMessageTimestamp?: number;
   unreadCount?: number;

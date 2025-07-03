@@ -20,7 +20,7 @@ export function ChatListItem({ contact, isSelected, onSelectContact }: ChatListI
     <button
       onClick={() => onSelectContact(contact)}
       className={cn(
-        "flex items-center w-full p-3 hover:bg-muted/80 transition-colors rounded-lg",
+        "flex items-center w-full p-3 hover:bg-muted/80 transition-colors rounded-lg text-left",
         isSelected ? "bg-muted" : "bg-transparent"
       )}
     >
@@ -28,21 +28,17 @@ export function ChatListItem({ contact, isSelected, onSelectContact }: ChatListI
         <AvatarImage src={contact.avatar} alt={contact.name} data-ai-hint={contact.dataAiHint} />
         <AvatarFallback>{getInitials(contact.name)}</AvatarFallback>
       </Avatar>
-      <div className="flex-1 text-left">
+      <div className="flex-1">
         <p className="font-medium text-sm text-foreground">{contact.name}</p>
         {contact.lastMessage && (
           <p className={cn(
-            "text-xs truncate",
-            isSelected ? "text-muted-foreground" : "text-muted-foreground/80"
+            "text-xs truncate text-muted-foreground/80",
+            isSelected ? "text-muted-foreground" : ""
           )}>
             {contact.lastMessage}
           </p>
         )}
       </div>
-      {/* Optional: Unread count or last message time */}
-      {/* {contact.unreadCount && contact.unreadCount > 0 && (
-        <Badge variant="default" className="ml-auto text-xs">{contact.unreadCount}</Badge>
-      )} */}
     </button>
   );
 }

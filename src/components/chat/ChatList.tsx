@@ -30,7 +30,7 @@ export function ChatList({ contacts, selectedContact, onSelectContact, onCreateN
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
-            placeholder="Search chats..."
+            placeholder="Search contacts..."
             className="pl-10 h-10 rounded-lg bg-background focus-visible:ring-primary"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -42,15 +42,15 @@ export function ChatList({ contacts, selectedContact, onSelectContact, onCreateN
           <div className="space-y-1">
             {filteredContacts.map((contact) => (
               <ChatListItem
-                key={contact.id}
+                key={contact.uid}
                 contact={contact}
-                isSelected={selectedContact?.id === contact.id}
+                isSelected={selectedContact?.uid === contact.uid}
                 onSelectContact={onSelectContact}
               />
             ))}
           </div>
         ) : (
-          <p className="text-center text-sm text-muted-foreground p-4">No contacts found.</p>
+          <p className="text-center text-sm text-muted-foreground p-4">No other users found.</p>
         )}
       </ScrollArea>
       <div className="p-2 border-t mt-auto">
