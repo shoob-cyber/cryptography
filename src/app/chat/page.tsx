@@ -240,13 +240,48 @@ export default function ChatPage() {
     setSelectedContact(contact);
   };
 
-  const handleCreateNewChat = () => {
-    // This functionality should now ideally allow searching for users in the database
-    // For now, this is a placeholder. A real implementation would involve a user search modal.
-    toast({
-      title: "Feature Coming Soon",
-      description: "Creating new chats by searching for users is under development."
-    })
+  const handleCreateNewChat = async () => {
+    // This function creates a new "demo" user in Firestore, which will then appear in the contact lists of all users.
+    if (!user) return;
+
+    try {
+        const usersCollectionRef = collection(db, 'users');
+        const newUserDocRef = doc(usersCollectionRef); // Create a new doc reference with a unique ID
+
+        const newContact: UserProfile = {
+            uid: newUserDocRef.id,
+            name: `Demo User ${Math.floor(Math.random() * 1000)}`,
+            email: `demo-${newUserDocRef.id}@example.com`,
+            avatar: `https://placehold.co/100x100.png`,
+            dataAiHint: 'profile person',
+            walletAddress: `0xDEMO${newUserDocRef.id.substring(0, 10)}`
+        };
+
+        await setDoc(newUserDocRef, {
+            ...newContact,
+            createdAt: serverTimestamp(),
+        });
+
+        // The real-time listener will automatically add this new user to the `contacts` list.
+        // We optimistically select the new contact.
+        setSelectedContact({
+            ...newContact,
+            lastMessage: "Click to start chatting",
+        });
+        
+        toast({
+            title: "Demo User Created",
+            description: `You can now chat with ${newContact.name}.`,
+        });
+
+    } catch (error) {
+        console.error("Error creating new demo user:", error);
+        toast({
+            title: "Error",
+            description: "Could not create a new demo user.",
+            variant: "destructive",
+        });
+    }
   };
 
   if (authLoading || !user) {
