@@ -125,12 +125,13 @@ export default function ChatPage() {
         if (!selectedContact && usersList.length > 0) {
           // Find if the previously selected contact is still in the list
           const prevSelected = usersList.find(c => c.uid === selectedContact?.uid);
-          setSelectedContact(prevSelected || usersList[0]);
+          // Do not auto-select a contact
+          // setSelectedContact(prevSelected || usersList[0]);
         }
     });
 
     return () => unsubscribe();
-  }, [user, selectedContact]);
+  }, [user]);
 
 
   // Listen for real-time messages for the selected chat
@@ -240,8 +241,28 @@ export default function ChatPage() {
   };
 
 
-  const handleSelectContact = (contact: ChatContact) => {
-    setSelectedContact(contact);
+  const handleSelectContact = async (contact: ChatContact) => {
+    if (!user) return;
+    setSelectedContact(contact); // Set state immediately for responsiveness
+    
+    // Proactively create the chat document to ensure security rules pass for the listener.
+    const getChatId = (uid1: string, uid2: string) => uid1 < uid2 ? `${uid1}_${uid2}` : `${uid2}_${uid1}`;
+    const chatId = getChatId(user.uid, contact.uid);
+    const chatDocRef = doc(db, 'chats', chatId);
+
+    try {
+      await setDoc(chatDocRef, { 
+        participants: [user.uid, contact.uid],
+        lastUpdated: serverTimestamp()
+      }, { merge: true });
+    } catch (e) {
+      console.error("Error ensuring chat document exists:", e);
+      toast({
+        title: "Error",
+        description: "Could not initialize chat session.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleCreateNewChat = async () => {
@@ -267,8 +288,8 @@ export default function ChatPage() {
         });
 
         // The real-time listener will automatically add this new user to the `contacts` list.
-        // We optimistically select the new contact.
-        setSelectedContact({
+        // We select the contact, which also ensures the chat document is created.
+        await handleSelectContact({
             ...newContact,
             lastMessage: "Click to start chatting",
         });
