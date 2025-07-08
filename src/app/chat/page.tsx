@@ -106,16 +106,20 @@ export default function ChatPage() {
     if (!user) return;
 
     const usersCollectionRef = collection(db, 'users');
-    const q = query(usersCollectionRef, where('uid', '!=', user.uid));
+    // Fetch all users and filter client-side, as Firestore doesn't support '!=' queries.
+    const q = query(usersCollectionRef);
     
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const usersList: ChatContact[] = [];
         querySnapshot.forEach((doc) => {
-            const data = doc.data() as UserProfile;
-            usersList.push({
-                ...data,
-                lastMessage: "Click to start chatting", // Placeholder
-            });
+          // Filter out the current user
+          if (doc.id !== user.uid) {
+              const data = doc.data() as UserProfile;
+              usersList.push({
+                  ...data,
+                  lastMessage: "Click to start chatting", // Placeholder
+              });
+          }
         });
         setContacts(usersList);
         if (!selectedContact && usersList.length > 0) {
