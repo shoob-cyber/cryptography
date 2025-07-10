@@ -27,12 +27,11 @@ export default function AuthenticationPage() {
     );
   }
 
-  // user will be null here if not logged in
   if (!user) {
     return <AuthForm />;
   }
 
-  // If user is logged in but router hasn't pushed yet, show loading
+  // Fallback loading state while router is pushing
   return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
         <Skeleton className="h-12 w-12 rounded-full mb-4" />
