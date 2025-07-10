@@ -20,8 +20,12 @@ const MetaMaskIcon = () => (
 
 export function AuthForm() {
   const { login, signup, signInWithGoogle, loading } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [signupEmail, setSignupEmail] = useState("");
+  const [signupPassword, setSignupPassword] = useState("");
+
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("login");
 
@@ -30,9 +34,9 @@ export function AuthForm() {
     setError(null);
     try {
       if (action === 'login') {
-        await login(email, password);
+        await login(loginEmail, loginPassword);
       } else {
-        await signup(email, password);
+        await signup(signupEmail, signupPassword);
       }
     } catch (err: any) {
       console.error(err);
@@ -52,6 +56,11 @@ export function AuthForm() {
 
   const handleMetaMaskConnect = async () => {
     setError("MetaMask connection is not fully integrated yet.");
+  };
+
+  const onTabChange = (value: string) => {
+    setActiveTab(value);
+    setError(null);
   };
 
   return (
@@ -81,7 +90,7 @@ export function AuthForm() {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-          <Tabs defaultValue="login" value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <Tabs defaultValue="login" value={activeTab} onValueChange={onTabChange} className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="login">Login</TabsTrigger>
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
@@ -94,11 +103,11 @@ export function AuthForm() {
                 <div className="space-y-4 pt-4">
                   <div className="space-y-2">
                     <Label htmlFor="login-email">Email</Label>
-                    <Input id="login-email" type="email" placeholder="m@example.com" required value={email} onChange={(e) => setEmail(e.target.value)} disabled={loading} className="focus:ring-primary focus:border-primary" />
+                    <Input id="login-email" type="email" placeholder="m@example.com" required value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} disabled={loading} className="focus:ring-primary focus:border-primary" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="login-password">Password</Label>
-                    <Input id="login-password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} disabled={loading} className="focus:ring-primary focus:border-primary" />
+                    <Input id="login-password" type="password" required value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} disabled={loading} className="focus:ring-primary focus:border-primary" />
                   </div>
                   <Button type="submit" className="w-full transition-transform active:scale-95" disabled={loading}>
                     {loading ? "Logging in..." : "Login"}
@@ -113,11 +122,11 @@ export function AuthForm() {
                 <div className="space-y-4 pt-4">
                   <div className="space-y-2">
                     <Label htmlFor="signup-email">Email</Label>
-                    <Input id="signup-email" type="email" placeholder="m@example.com" required value={email} onChange={(e) => setEmail(e.target.value)} disabled={loading} className="focus:ring-primary focus:border-primary" />
+                    <Input id="signup-email" type="email" placeholder="m@example.com" required value={signupEmail} onChange={(e) => setSignupEmail(e.target.value)} disabled={loading} className="focus:ring-primary focus:border-primary" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-password">Password</Label>
-                    <Input id="signup-password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} disabled={loading} className="focus:ring-primary focus:border-primary" />
+                    <Input id="signup-password" type="password" required value={signupPassword} onChange={(e) => setSignupPassword(e.target.value)} disabled={loading} className="focus:ring-primary focus:border-primary" />
                   </div>
                   <Button type="submit" className="w-full transition-transform active:scale-95" disabled={loading}>
                     {loading ? "Signing up..." : "Sign Up"}
