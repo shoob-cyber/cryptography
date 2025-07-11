@@ -14,9 +14,8 @@ import { format } from "date-fns";
 import Link from "next/link";
 import { ExternalLink, Hash, Clock, CheckCircle2, AlertCircle, ListOrdered } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-
-// Prefix for chat storage keys in localStorage
-const CHAT_STORAGE_KEY_PREFIX = "blocktalk_chat_";
+import { db } from "@/lib/firebase";
+import { collectionGroup, query, where, getDocs, orderBy, or } from "firebase/firestore";
 
 // Illustrative mock decryption - ensure this matches the one in chat/page.tsx or abstract it
 const illustrativeCipher = (text: string, shift: number, encrypt: boolean): string => {
@@ -63,47 +62,45 @@ export default function BlockchainLedgerPage() {
     if (user) {
       const fetchLedgerData = async () => {
         setIsLoading(true);
-        let allMessages: Message[] = [];
         try {
-          // Note: This logic reads from localStorage, which is no longer being used for chat messages
-          // after the migration to Firebase. This page will be empty until it is updated to read from Firestore.
-          for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && user.uid && key.startsWith(`${CHAT_STORAGE_KEY_PREFIX}${user.uid}_`)) {
-              const storedMessagesRaw = localStorage.getItem(key);
-              if (storedMessagesRaw) {
-                const parsedMessages: Message[] = JSON.parse(storedMessagesRaw).map((msg: any) => ({
-                  ...msg,
-                  timestamp: new Date(msg.timestamp),
-                }));
-                
-                const processedMessages = await Promise.all(
-                  parsedMessages.map(async (msg) => {
-                    let decryptedText = msg.text; // Default to original text
-                    if (msg.text && msg.text.startsWith("cipher_caesar_3(")) {
-                       try {
-                          decryptedText = await mockDecrypt(msg.text);
-                       } catch (e) { console.error("Decryption error for ledger", e); }
-                    } else if (msg.decryptedText) { // If already decrypted from chat page
-                        decryptedText = msg.decryptedText;
-                    }
-                    return { ...msg, decryptedText };
-                  })
-                );
-                allMessages.push(...processedMessages);
-              }
-            }
-          }
+          // Fetch all messages where the user is either the sender or receiver
+          const messagesQuery = query(
+            collectionGroup(db, 'messages'),
+            or(
+              where('senderId', '==', user.uid),
+              where('receiverId', '==', user.uid)
+            ),
+            orderBy('timestamp', 'desc')
+          );
+
+          const querySnapshot = await getDocs(messagesQuery);
+          let allMessages: Message[] = [];
+          querySnapshot.forEach((doc) => {
+             allMessages.push({ id: doc.id, ...doc.data() } as Message);
+          });
           
           const relevantEntries = allMessages.filter(
             (msg) => msg.transactionHash && ['chain_confirmed', 'chain_pending', 'chain_failed'].includes(msg.status || '')
           );
           
-          relevantEntries.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-          setLedgerEntries(relevantEntries);
+          const processedEntries = await Promise.all(
+            relevantEntries.map(async (msg) => {
+              let decryptedText = msg.text;
+              if (msg.text && msg.text.startsWith("cipher_caesar_3(")) {
+                  try {
+                    decryptedText = await mockDecrypt(msg.text);
+                  } catch (e) { console.error("Decryption error for ledger", e); }
+              } else if (msg.decryptedText) {
+                  decryptedText = msg.decryptedText;
+              }
+              return { ...msg, decryptedText };
+            })
+          );
+          
+          setLedgerEntries(processedEntries);
+
         } catch (error) {
-          console.error("Failed to load ledger data:", error);
-          // Handle error display if necessary
+          console.error("Failed to load ledger data from Firestore:", error);
         }
         setIsLoading(false);
       };
@@ -165,7 +162,7 @@ export default function BlockchainLedgerPage() {
               <CardTitle className="text-2xl font-headline">Blockchain Ledger View</CardTitle>
             </div>
             <CardDescription>
-              A chronological log of all messages hashed and submitted to the (mock) blockchain.
+              A chronological log of all messages hashed and submitted to the (mock) blockchain from your chats.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -296,3 +293,5 @@ export default function BlockchainLedgerPage() {
     </TooltipProvider>
   );
 }
+
+    

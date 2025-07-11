@@ -10,8 +10,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Wallet, BookCheck, AlertTriangle, CheckCircle2, Clock, ListChecks, ArrowRightLeft, FileText, Bot, Network, Landmark } from "lucide-react";
 import { PieChart, Pie, Cell } from 'recharts';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
+import { db } from "@/lib/firebase";
+import { collectionGroup, query, where, getDocs } from "firebase/firestore";
 
-const CHAT_STORAGE_KEY_PREFIX = "blocktalk_chat_";
 
 interface AnalyticsData {
   totalMessagesSent: number;
@@ -98,22 +99,17 @@ export default function AnalyticsDashboardPage() {
         setIsLoading(true);
         let allMessages: Message[] = [];
         try {
-          // Note: This logic reads from localStorage, which is no longer being used for chat messages
-          // after the migration to Firebase. This page will show 0s until it is updated to read from Firestore.
-          for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && user.uid && key.startsWith(`${CHAT_STORAGE_KEY_PREFIX}${user.uid}_`)) {
-              const storedMessagesRaw = localStorage.getItem(key);
-              if (storedMessagesRaw) {
-                const parsedMessages: Message[] = JSON.parse(storedMessagesRaw).map((msg: any) => ({
-                  ...msg,
-                  timestamp: new Date(msg.timestamp),
-                }));
-                allMessages.push(...parsedMessages);
-              }
-            }
-          }
-
+          // Fetch all messages sent by the current user from all chats.
+          const messagesQuery = query(
+            collectionGroup(db, 'messages'),
+            where('senderId', '==', user.uid)
+          );
+          const querySnapshot = await getDocs(messagesQuery);
+          
+          querySnapshot.forEach((doc) => {
+            allMessages.push({ id: doc.id, ...doc.data() } as Message);
+          });
+          
           const totalMessagesSent = allMessages.length;
           const totalMessagesHashed = allMessages.filter(msg => msg.messageHash).length;
           
@@ -158,7 +154,7 @@ export default function AnalyticsDashboardPage() {
           });
 
         } catch (error) {
-          console.error("Failed to load analytics data:", error);
+          console.error("Failed to load analytics data from Firestore:", error);
         }
         setIsLoading(false);
       };
@@ -227,7 +223,7 @@ export default function AnalyticsDashboardPage() {
             <CardTitle className="text-2xl font-headline">Analytics Dashboard</CardTitle>
           </div>
           <CardDescription>
-            Overview of message activity and mock blockchain performance. Data is session-based from local storage.
+            Overview of message activity and mock blockchain performance from your live data.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -240,7 +236,7 @@ export default function AnalyticsDashboardPage() {
           </CardHeader>
           <CardContent>
             <AnimatedCounter value={analyticsData.totalMessagesSent} />
-            <p className="text-xs text-muted-foreground">All messages initiated by user.</p>
+            <p className="text-xs text-muted-foreground">All messages initiated by you.</p>
           </CardContent>
         </Card>
 
@@ -383,3 +379,5 @@ export default function AnalyticsDashboardPage() {
     </div>
   );
 }
+
+    
